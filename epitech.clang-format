@@ -1,0 +1,26 @@
+# Epitech C Coding Style: C-F3, C-G2, C-L2, C-L3, and C-L4.
+# C-G1 and C-G3 are handled by the surrounding Neovim formatter.
+# Leave directive text intact so wrapping never introduces forbidden backslashes.
+BasedOnStyle: LLVM
+AlignAfterOpenBracket: DontAlign
+AlignOperands: DontAlign
+IndentWidth: 4
+ContinuationIndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 79
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+SeparateDefinitionBlocks: Always
+SortIncludes: Never
+IncludeBlocks: Preserve
+ReflowComments: Never
+MaxEmptyLinesToKeep: 1
+PointerAlignment: Right
+SpaceBeforeParens: ControlStatements
+IndentPPDirectives: None
+SkipMacroDefinitionBody: true
+OneLineFormatOffRegex: '^[[:space:]]*#'
