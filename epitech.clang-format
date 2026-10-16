@@ -14,6 +14,10 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortBlocksOnASingleLine: Never
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
+# C-L2: a switch body is a new scope, so case labels sit one level inside it.
+# Banana also counts a case block's braces as a level below the label.
+IndentCaseLabels: true
+IndentCaseBlocks: true
 SeparateDefinitionBlocks: Always
 SortIncludes: Never
 IncludeBlocks: Preserve
