@@ -1,9 +1,15 @@
 # Epitech C Coding Style: C-F3, C-G2, C-L2, C-L3, and C-L4.
-# C-G1 and C-G3 are handled by the surrounding Neovim formatter.
+# C-G1, C-G3, C-G7, C-G8, C-L6, and spacing inside #define bodies are handled
+# by the surrounding Neovim formatter.
 # Leave directive text intact so wrapping never introduces forbidden backslashes.
 BasedOnStyle: LLVM
 AlignAfterOpenBracket: DontAlign
 AlignOperands: DontAlign
+# Wrapped conditions start with their operator, as in the style's examples.
+BreakBeforeBinaryOperators: NonAssignment
+# C-L3: one space before a trailing comment, never alignment padding.
+AlignTrailingComments:
+  Kind: Never
 IndentWidth: 4
 ContinuationIndentWidth: 4
 TabWidth: 4
@@ -21,8 +27,12 @@ IndentCaseBlocks: true
 SeparateDefinitionBlocks: Always
 SortIncludes: Never
 IncludeBlocks: Preserve
-ReflowComments: Never
+# C-F3 applies to comments too.
+ReflowComments: Always
 MaxEmptyLinesToKeep: 1
+KeepEmptyLines:
+  AtStartOfBlock: false
+  AtStartOfFile: false
 PointerAlignment: Right
 SpaceBeforeParens: ControlStatements
 IndentPPDirectives: None
