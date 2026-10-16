@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+EPITECH_NVIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+export EPITECH_NVIM_DIR
+
+while IFS= read -r file; do
+    luac -p "$file"
+done < <(find "$EPITECH_NVIM_DIR/lua" "$EPITECH_NVIM_DIR/after" "$EPITECH_NVIM_DIR/test" -type f -name '*.lua' -print)
+
+nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/nvim.lua"
+nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/header-filetypes.lua"
+
+# The formatter tests check the output with Banana, so they need epiclang and
+# the Epitech Vim config the formatter runs.
+if command -v epiclang >/dev/null 2>&1 && [ -f "${HOME}/.vim/epitech.vim" ]; then
+    nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/format-guard.lua"
+    nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/format-style.lua"
+else
+    printf '%s\n' 'Skipping formatter tests: epiclang or ~/.vim/epitech.vim is missing'
+fi
