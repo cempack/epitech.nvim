@@ -124,8 +124,9 @@ diagnostics = {
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one
 of the plugin's hints opens a float that explains the rule: its code and
-title, its severity, who checks it (🍌 Banana, 👤 a grader), a short summary
-and a bad and a good example. With several rules on the line, the one under
+title, its severity, who checks it (🍌 Banana, 👤 a grader), a short summary,
+a bad and a good example, and what measuring the real `epiclang` showed about
+it when that matters (how C-F4 counts lines, for instance). With several rules on the line, the one under
 the cursor wins, else you choose; with none, you pick from the list.
 `:EpitechExplain C-F6` explains a given rule, and `:EpitechRules` lists all
 42 rules. Change or disable the key with `explain = { keymap = … }`.
@@ -135,7 +136,8 @@ the cursor wins, else you choose; with none, you pick from the list.
 After each function's signature, a meter shows how much of its budget it
 uses: `13/20 lines · 2/4 args` (C-F4, C-F5). It's dim below 17 lines, in the
 warning color from 17 to 20 and in the error color past 20; the parameter
-count turns red past 4, and a variadic shows as `2/4 args + …`. The colors
+count turns red past 4. A variadic `...` counts as a parameter, as Banana
+counts it: `int f(int a, ...)` shows `2/4 args (…)`. The colors
 are the `EpitechBudgetOk`, `EpitechBudgetNear` and `EpitechBudgetOver`
 highlight groups (linked to `Comment`, `DiagnosticWarn` and `DiagnosticError`
 unless your colorscheme sets them).
@@ -164,7 +166,8 @@ Control statements nested two levels deep or more get a depth label at the
 end of their line (C-C1): `depth 2`, `depth 2 (else + if)` on an `else if`
 (which counts as an `if` inside the `else`), and `depth 3 ✗ C-C1` in the
 error color. The first `if` of a chain with more than three branches gets
-`4 branches ✗ C-C1`. A `switch` counts as a level.
+`4 branches ✗ C-C1`. A `switch` and a `do while` count as levels, and an
+`else { if }` counts like an `else if`, as Banana counts them.
 
 ```lua
 budget = {

@@ -16,7 +16,8 @@ local function marks(buf, ns)
 end
 
 -- §9.3 function budget: 13-, 17-, 20- and 21-line bodies, 0, 1, 4 and 5
--- parameters, and a variadic.
+-- parameters, and a variadic, which counts as a parameter like Banana counts
+-- it.
 local buf = h.buffer("/tmp/epitech_budget_functions.c", vim.fn.readfile(plugin .. "/test/fixtures/budget/functions.c"))
 budget.update(buf)
 local OK, NEAR, OVER = "EpitechBudgetOk", "EpitechBudgetNear", "EpitechBudgetOver"
@@ -25,7 +26,7 @@ h.assert_equal(marks(buf, budget.ns), {
   { 24, { { "17/20 lines", NEAR }, { " · ", OK }, { "1/4 args", OK } } },
   { 45, { { "20/20 lines", NEAR }, { " · ", OK }, { "4/4 args", OK } } },
   { 69, { { "21/20 lines", OVER }, { " · ", OK }, { "5/4 args", OVER } } },
-  { 94, { { "3/20 lines", OK }, { " · ", OK }, { "4/4 args + …", NEAR } } },
+  { 94, { { "3/20 lines", OK }, { " · ", OK }, { "5/4 args (…)", OVER } } },
 }, "function meters")
 
 -- The highlight groups exist and link to standard groups by default.

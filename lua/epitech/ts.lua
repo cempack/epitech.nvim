@@ -12,7 +12,7 @@ local M = {}
 ---@field declarator TSNode      the function_declarator
 ---@field signature_row integer  0-based row holding the function name
 ---@field body TSNode            compound_statement
----@field body_lines integer     lines strictly between { and }
+---@field body_lines integer     lines strictly between { and }, as C-F4 counts them
 ---@field start_row integer
 ---@field end_row integer
 
@@ -121,8 +121,8 @@ function M.describe(node, source)
     declarator = declarator,
     signature_row = (name:range()),
     body = body,
-    -- calibrate: C-F4 may count blank, comment or continuation lines
-    -- differently; this is every line strictly between the braces.
+    -- C-F4: Banana counts every line between the braces, blank, comment and
+    -- continuation lines included (measured, §10 of CLAUDE.md).
     body_lines = math.max(body_end - body_start - 1, 0),
     start_row = start_row,
     end_row = end_row,

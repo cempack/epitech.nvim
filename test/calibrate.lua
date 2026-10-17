@@ -86,7 +86,16 @@ local variadic = check("variadic.c", {
   "    return a + b + c + d;",
   "}",
 })
-report("C-F5 four parameters and ...", has(variadic, "C-F5"), nil)
+local four = check("four.c", { "int sum_four(int a, int b, int c, int d)", "{", "    return a + b + c + d;", "}" })
+local budget_chunks = require("epitech.budget").function_chunks
+local function meter_over(lines)
+  local src = table.concat(lines, "\n")
+  local fn = ts.collect_functions(ts.parse_string(src), src)[1]
+  return budget_chunks(fn, config.options.budget)[3][2] == "EpitechBudgetOver"
+end
+report("C-F5 four parameters and ...", has(variadic, "C-F5"), meter_over({
+  "int sum_all(int a, int b, int c, int d, ...)", "{", "}" }))
+report("C-F5 four parameters", has(four, "C-F5"), meter_over({ "int sum_four(int a, int b, int c, int d)", "{", "}" }))
 
 -- 3. and 4. C-C1: nesting depth (switch, do while, a plain else block) and
 -- branch counts, compared with the depth meter's verdict.
@@ -183,21 +192,29 @@ report("header entries attributed to the header", #header_entries > 0, true)
 report("header entries kept off the .c", has(banana.parse(repeated.stderr, root .. "/uses_bad.c", root), "C-F6"),
   false)
 
--- 6. File-level messages: does C-O4 come with a line and column?
+-- 6. File-level messages: epiclang doesn't report C-O4 at all (the project
+-- check does it on the repository's file names).
 local _, bad_name = check("BadName.c", { "int main(void)", "{", "    return 0;", "}" })
 local file_level = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", bad_name }, { cwd = root, text = true }):wait()
-print("File name output:\n" .. file_level.stderr)
-for _, line in ipairs(vim.split(file_level.stderr, "\n", { trimempty = true })) do
-  if line:find("C-O4", 1, true) then
-    report("C-O4 has a position", line:match("^.-:%d+:%d+: ") ~= nil, nil)
+report("C-O4 reported by epiclang", file_level.stderr:find("C-O4", 1, true) ~= nil, false)
+
+-- C-F3 counts a tab as 4 columns: a tab and 96 characters are reported as a
+-- 100-character line (recorded in rules.lua; the formatter never writes tabs).
+local tabbed = check("tabbed.c", { "int get_long(void)", "{", "\treturn " .. string.rep("1", 88) .. ";", "}" })
+local tab_message = ""
+for _, d in ipairs(tabbed) do
+  if d.code == "C-F3" then
+    tab_message = d.message
   end
 end
+report("C-F3 counts a tab as 4 columns", tab_message:find("100", 1, true) ~= nil, true)
 
--- 8. Makefiles: does epiclang say anything about one? (If not, the plugin's
--- own Makefile checks stay as they are, with makefile.tab_width = 8.)
+-- 8. Makefiles: epiclang reads one as C code (C-G4 on `all:`, C-L2 on the
+-- recipe's tab), so it can't check Makefiles. The plugin's own Makefile
+-- checks stay, with the cautious makefile.tab_width = 8.
 vim.fn.writefile({ "all:", "\t@echo " .. string.rep("x", 90) }, root .. "/Makefile")
 local make = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", root .. "/Makefile" }, { cwd = root, text = true }):wait()
-report("Banana reports on a Makefile", make.stderr:find("[Banana]", 1, true) ~= nil, nil)
+report("epiclang reads a Makefile as C", has(banana.parse(make.stderr, root .. "/Makefile", root), "C-G4"), true)
 
 cleanup()
 if #failures > 0 then

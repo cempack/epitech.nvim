@@ -1,8 +1,8 @@
 -- The Epitech C Coding Style v7.1 rules, in the PDF's order. Data only: the
 -- summaries and examples are short paraphrases, never the PDF's own text.
 -- `notes` holds what calibration against the real epiclang measured (§10 of
--- CLAUDE.md); nil means not measured yet. `lang` is the examples' language
--- when they aren't C.
+-- CLAUDE.md, test/calibrate.lua), nil when nothing was. `lang` is the
+-- examples' language when they aren't C.
 local M = {}
 
 M.rules = {
@@ -43,6 +43,7 @@ M.rules = {
     summary = "File and folder names are English snake_case and say what they hold; abbreviations only when still clear.",
     bad = { "src/Utils.c", "src/string.c" },
     good = { "src/parse_args.c", "src/string_toolbox.c" },
+    notes = "epiclang doesn't report it: file and folder names are checked on the repository, which :EpitechCheck does.",
     lang = "text",
   },
   {
@@ -125,6 +126,7 @@ M.rules = {
     summary = "Give non-trivial constants a name, with a macro or a global constant.",
     bad = { "char buffer[4096];" },
     good = { "#define BUFFER_SIZE 4096", "", "char buffer[BUFFER_SIZE];" },
+    notes = "epiclang reports nothing for it: only a grader checks it.",
   },
   {
     code = "C-G10",
@@ -161,6 +163,7 @@ M.rules = {
     summary = "At most 80 columns per line, the newline included, with tabs counting as several columns. Makefiles too.",
     bad = { "if (is_valid(player) && is_alive(player) && has_ammo(player) && can_aim(player)) {" },
     good = { "if (is_valid(player) && is_alive(player)", "    && has_ammo(player) && can_aim(player)) {" },
+    notes = "epiclang counts a tab as 4 columns: a tab and 96 characters make a 100-character line.",
   },
   {
     code = "C-F4",
@@ -170,6 +173,7 @@ M.rules = {
     summary = "A function's body has at most 20 lines.",
     bad = { "int run(void)", "{", "    /* 21 lines or more */", "}" },
     good = { "int run(void)", "{", "    /* 20 lines at most */", "}" },
+    notes = "Every line between the braces counts: blank lines (the C-L6 one too), comment lines, and each line of a statement spread over several.",
   },
   {
     code = "C-F5",
@@ -179,6 +183,7 @@ M.rules = {
     summary = "At most 4 parameters, and no variadic list to get around that limit.",
     bad = { "void draw(int x, int y, int width, int height, int color);" },
     good = { "void draw(rect_t const *rect, int color);" },
+    notes = "A variadic ... counts as a parameter: four parameters and ... are too many.",
   },
   {
     code = "C-F6",
@@ -305,6 +310,7 @@ M.rules = {
     summary = "At most 3 branches per if chain, and a nesting depth below 3, where an else if counts as an if inside the else.",
     bad = { "if (a) {", "} else if (b) {", "} else if (c) {", "} else {", "}" },
     good = { "switch (key) {", "    case 'a':", "        break;", "    default:", "        break;", "}" },
+    notes = "A switch counts as a nesting level, and so does do while; else { if } counts like else if. Four branches are flagged, three aren't.",
   },
   {
     code = "C-C2",
@@ -359,6 +365,7 @@ M.rules = {
     summary = "Mark pointed-to data const when the function doesn't modify it.",
     bad = { "int count_char(char *str, char c);" },
     good = { "int count_char(char const *str, char c);" },
+    notes = "epiclang reports nothing for it: only a grader checks it.",
   },
   {
     code = "C-A2",
@@ -368,6 +375,7 @@ M.rules = {
     summary = "Use the most precise type: size_t for sizes, uint8_t for bytes, ptrdiff_t for pointer differences.",
     bad = { "int len = strlen(str);" },
     good = { "size_t len = strlen(str);" },
+    notes = "epiclang reports nothing for it: only a grader checks it.",
   },
   {
     code = "C-A3",
@@ -386,6 +394,7 @@ M.rules = {
     summary = "Make functions and global variables static when only their own file uses them.",
     bad = { "int is_separator(char c)" },
     good = { "static int is_separator(char c)" },
+    notes = "epiclang reports nothing for it: only a grader checks it.",
   },
 }
 

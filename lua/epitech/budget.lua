@@ -30,20 +30,15 @@ function M.function_chunks(fn, options)
     lines_hl = "EpitechBudgetNear"
   end
 
-  local args = #fn.params
-  local args_hl = "EpitechBudgetOk"
-  if args > options.max_args then
-    args_hl = "EpitechBudgetOver"
-  elseif fn.variadic and args + 1 > options.max_args then
-    -- calibrate: whether Banana counts `...` as a parameter (C-F5 forbids
-    -- variadics that get around the limit); a warning until measured.
-    args_hl = "EpitechBudgetNear"
-  end
+  -- C-F5: Banana counts a variadic `...` as a parameter (measured, §10 of
+  -- CLAUDE.md), so the meter does too.
+  local args = #fn.params + (fn.variadic and 1 or 0)
+  local args_hl = args > options.max_args and "EpitechBudgetOver" or "EpitechBudgetOk"
 
   return {
     { ("%d/%d lines"):format(fn.body_lines, options.max_lines), lines_hl },
     { " · ", "EpitechBudgetOk" },
-    { ("%d/%d args"):format(args, options.max_args) .. (fn.variadic and " + …" or ""), args_hl },
+    { ("%d/%d args"):format(args, options.max_args) .. (fn.variadic and " (…)" or ""), args_hl },
   }
 end
 
@@ -66,8 +61,7 @@ local CONTROL = {
   while_statement = true,
   for_statement = true,
   do_statement = true,
-  -- calibrate: whether Banana counts a switch as a level; counted until
-  -- measured.
+  -- Banana counts a switch as a level (measured, §10 of CLAUDE.md).
   switch_statement = true,
 }
 

@@ -202,6 +202,7 @@ These were checked by running code (Neovim 0.11.4, clang-format 21.1.8, October 
   Some entries may have no line or column (cs2's regex allows `file: warning: …`). Levels are `Fatal`, `Major`, `Minor`, `Info`. Codes can have two digits (`C-G10`).
 - Errors in a header are printed again for every file that includes it.
 - Other compiler output (real errors, `1 warning generated.`) is mixed in. Ignore every line without `[Banana]`; clangd already shows compile errors.
+- Measured on Elliot's machine (§10): epiclang prints every warning **twice** in one run, each followed by clang's source excerpt (`   8 | int computeSum(…)` and a `^` line), and a header's warnings come after `In file included from …:8:` with the header's absolute path (when included through an absolute `-I`). It never reports C-O4. It counts a tab as 4 columns for C-F3 (`100-character line` for a tab and 96 characters). Run on a Makefile, it reads it as C (C-G4 on `all:`, C-L2 on recipe tabs, C-G1 even with a correct `##` header), so it can't check Makefiles.
 - `#include "my.h"` only resolves with `-I include`, or with the flags from `compile_commands.json`.
 - Lua patterns, tested on the lines above:
 
@@ -903,7 +904,9 @@ LuaSnip alternative: `require("luasnip.loaders.from_vscode").lazy_load({ paths =
 
 ## 10. Calibration against the real epiclang
 
-`test/calibrate.lua`, gated on epiclang. Elliot's machine has it. Measure each item, record the answer in `rules.lua` `notes`, adjust the code, and add a test that pins the measured behaviour:
+`test/calibrate.lua`, gated on epiclang. Elliot's machine has it. Measure each item, record the answer in `rules.lua` `notes`, adjust the code, and add a test that pins the measured behaviour.
+
+**Done** (first run on Elliot's machine, epiclang as installed there, Neovim 0.12.5): 1. C-F4 counts every line between the braces (blank, the C-L6 blank, comment and continuation lines); 2. `...` counts as a parameter, so four parameters plus `...` is a C-F5 violation (the meter now counts it); 3. `switch` and `do while` add a level and `else { if }` counts like `else if`; 4. four branches are flagged, three aren't; 5. a header's entries repeat with the header's path and stay off the `.c`; 6. C-O4 isn't reported by epiclang at all; 7. nothing for C-G9, C-A1, C-A2, C-A4; 8. a Makefile is read as C, so Banana-through-epiclang doesn't check Makefiles and `makefile.tab_width` stays 8. Also measured: a tab is 4 columns for C-F3. All of it is pinned in `test/calibrate.lua`. The items:
 
 1. **C-F4 line counting.** Generate bodies of 20 and 21 lines made of (a) only statements, (b) declarations plus the C-L6 blank line, (c) a statement spread over two lines, (d) a comment line (also a C-F8 violation; check whether it counts). Find the threshold in each case.
 2. **C-F5 variadics.** Does `(int a, int b, int c, int d, ...)` count as 5?
@@ -970,6 +973,7 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 - **README reorganized** once every feature was in: intro, install and requirements (git, epiclang and the optional clangd, Trouble, blink.cmp/LuaSnip), a commands table, one section per feature in the order a user meets them, the full `setup()` defaults, highlight groups and namespaces. Commit `docs: reorganize the README around the finished features`.
 - **Neovim 0.12 fixes** (§6.6): C-O1 patterns matched without `vim.glob`, and `project.files` returns nil for a missing root. Found by the first full run on Elliot's machine (Neovim 0.12.5, clang-format 22.1.8). Commit `fix: keep the project check working on Neovim 0.12`.
 - **Type snippets checked in a header.** `test/snippets-real.lua` expanded `tdef` and `tenum` in a `.c` file, where Banana rightly reports C-H1 (typedefs belong in headers); they're now checked in a `.h` with an include guard. Commit `test: check the type snippets against Banana in a header`.
+- **§10 calibration done** on Elliot's machine (results in §10 and §6.1, notes in `rules.lua` for C-O4, C-G9, C-F3, C-F4, C-F5, C-C1, C-A1, C-A2, C-A4). The only code change it called for: the function meter counts a variadic `...` as a parameter (`5/4 args (…)` in the error color). The `-- calibrate:` guesses in `ts.lua` and `budget.lua` became comments citing the measurement. `test/calibrate.lua` now pins C-F5 both ways, C-O4 not being reported, the 4-column tab and the Makefile being read as C. Commit `feat: calibrate the meters against the real epiclang`.
 
 ---
 
