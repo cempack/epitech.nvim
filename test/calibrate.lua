@@ -164,6 +164,41 @@ for _, code in ipairs({ "C-G9", "C-A1", "C-A2", "C-A4" }) do
   report(code .. " is grader-only", has(grader, code), false)
 end
 
+-- 5. Header repeats: a .c including a bad header. The plugin keeps the
+-- header's entries off the .c and attributes them to the header.
+vim.fn.mkdir(root .. "/include", "p")
+vim.fn.writefile(vim.list_extend(vim.deepcopy(HEADER), {
+  "#ifndef BAD_H_", "    #define BAD_H_", "", "int print_help();", "", "#endif",
+}), root .. "/include/bad.h")
+vim.fn.writefile(vim.list_extend(vim.deepcopy(HEADER), {
+  '#include "bad.h"', "", "int main(void)", "{", "    return 0;", "}",
+}), root .. "/uses_bad.c")
+local repeated = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", "-I" .. root .. "/include", root .. "/uses_bad.c" },
+  { cwd = root, text = true }):wait()
+print("Header repeat output:\n" .. repeated.stderr)
+local header_entries = vim.tbl_filter(function(d)
+  return d.user_data.path == vim.uv.fs_realpath(root .. "/include/bad.h")
+end, banana.parse(repeated.stderr, nil, root))
+report("header entries attributed to the header", #header_entries > 0, true)
+report("header entries kept off the .c", has(banana.parse(repeated.stderr, root .. "/uses_bad.c", root), "C-F6"),
+  false)
+
+-- 6. File-level messages: does C-O4 come with a line and column?
+local _, bad_name = check("BadName.c", { "int main(void)", "{", "    return 0;", "}" })
+local file_level = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", bad_name }, { cwd = root, text = true }):wait()
+print("File name output:\n" .. file_level.stderr)
+for _, line in ipairs(vim.split(file_level.stderr, "\n", { trimempty = true })) do
+  if line:find("C-O4", 1, true) then
+    report("C-O4 has a position", line:match("^.-:%d+:%d+: ") ~= nil, nil)
+  end
+end
+
+-- 8. Makefiles: does epiclang say anything about one? (If not, the plugin's
+-- own Makefile checks stay as they are, with makefile.tab_width = 8.)
+vim.fn.writefile({ "all:", "\t@echo " .. string.rep("x", 90) }, root .. "/Makefile")
+local make = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", root .. "/Makefile" }, { cwd = root, text = true }):wait()
+report("Banana reports on a Makefile", make.stderr:find("[Banana]", 1, true) ~= nil, nil)
+
 cleanup()
 if #failures > 0 then
   error("Banana disagrees with the plugin on:\n  " .. table.concat(failures, "\n  "))

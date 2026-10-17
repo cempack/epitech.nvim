@@ -143,6 +143,23 @@ hints = {
 },
 ```
 
+### Makefile checks
+
+The coding style covers Makefiles too. In a `Makefile` buffer, the plugin
+reports a missing Epitech header (C-G1), lines past 80 columns with tabs
+counted at `makefile.tab_width` columns (C-F3, `C-F3 86/80 columns`, the
+newline included), `\r` line endings (C-G6), trailing whitespace (C-G7),
+empty lines at the start or more than one at the end (C-G8), and a missing
+final newline (C-A3). These aren't guesses, so they use the rule's own
+severity. Header detection accepts both `##` and the PDF's `###` inner
+lines. Code actions: **Add the Epitech header**, **Split into SRC += lines**
+for a long or backslash-continued `SRC` assignment (the first line keeps its
+`=`), and **Remove trailing spaces**.
+
+```lua
+makefile = { enabled = true, tab_width = 8 },
+```
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one

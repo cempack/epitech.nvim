@@ -92,6 +92,7 @@ function M.setup(opts)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)
   require("epitech.hints").setup(options)
+  require("epitech.hints.makefile").setup(options)
 end
 
 return M

@@ -32,6 +32,7 @@ run magic
 run static
 run types
 run naming
+run makefile
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.

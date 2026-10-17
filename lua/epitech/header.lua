@@ -56,6 +56,10 @@ local function header_lines(style, project, description, year)
   }
 end
 
+-- The PDF's Makefile example writes "###" on the inner lines where Epitech's
+-- Vim config writes "##"; both count as the same header.
+local inner_variants = { ["##"] = { "##", "###" } }
+
 local function existing_header(lines)
   for start = 1, math.min(2, #lines - 5) do
     for _, style in pairs(comment_styles) do
@@ -73,15 +77,17 @@ local function existing_header(lines)
         last = last and last:gsub("^ ", "")
       end
       local year = second and second:match("EPITECH PROJECT, (%d%d%d%d)$")
-      if first == style[1]
-        and year
-        and second:sub(1, #style[2] + 1) == style[2] .. " "
-        and third:sub(1, #style[2] + 1) == style[2] .. " "
-        and fourth == style[2] .. " File description:"
-        and fifth:sub(1, #style[2] + 1) == style[2] .. " "
-        and last == style[3]
-      then
-        return start, style, third:sub(#style[2] + 2), fifth:sub(#style[2] + 2)
+      for _, inner in ipairs(inner_variants[style[2]] or { style[2] }) do
+        if first == style[1]
+          and year
+          and second:sub(1, #inner + 1) == inner .. " "
+          and third:sub(1, #inner + 1) == inner .. " "
+          and fourth == inner .. " File description:"
+          and fifth:sub(1, #inner + 1) == inner .. " "
+          and last == style[3]
+        then
+          return start, style, third:sub(#inner + 2), fifth:sub(#inner + 2)
+        end
       end
     end
   end
