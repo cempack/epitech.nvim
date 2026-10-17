@@ -377,12 +377,51 @@ What the plugin remembers about a project is stored in
 `~/.local/share/nvim/epitech.nvim/projects.json` (Neovim's data directory),
 never in your repository: C-O1 forbids unnecessary files there.
 
+### Snippets
+
+Snippets that follow the style, in VS Code's format under `snippets/`:
+
+| Prefix | Expands to |
+|---|---|
+| `main` | `int main(int ac, char **av)` returning 0 |
+| `fn` | a `/* ** description */` comment above a function taking `(void)` |
+| `sfn` | the same, `static` |
+| `tdef` | `typedef struct name_s { … } name_t;` |
+| `tenum` | `typedef enum name_e { VALUE, } name_t;` |
+| `sw` | a `switch` with two cases, `default:` and their `break;` |
+| `fori` | `for (int i = 0; i < n; i++) { … }` |
+| `ife` | `if` / `else` with braces |
+| `mal` | `ptr = malloc(sizeof(char) * (size));` and a `NULL` check returning `NULL` |
+
+With blink.cmp (LazyVim's default completion), add the folder to its snippet
+search paths, keeping the default one:
+
+```lua
+{
+  "saghen/blink.cmp",
+  opts = function(_, opts)
+    local providers = vim.tbl_get(opts, "sources", "providers") or {}
+    local snippets = providers.snippets or {}
+    snippets.opts = snippets.opts or {}
+    snippets.opts.search_paths = snippets.opts.search_paths or { vim.fn.stdpath("config") .. "/snippets" }
+    table.insert(snippets.opts.search_paths, require("epitech").snippets_dir())
+    opts.sources = opts.sources or {}
+    opts.sources.providers = providers
+    providers.snippets = snippets
+  end,
+}
+```
+
+With LuaSnip:
+`require("luasnip.loaders.from_vscode").lazy_load({ paths = { require("epitech").snippets_dir() } })`.
+
 ## Lua API
 
 - `require("epitech").format_buffer(buf)` formats a buffer in place, the
   current one when `buf` is omitted, exactly as `<leader>cf` does.
 - `require("epitech").insert_header()` and `insert_guard()` are what
   `:EpitechHeader` and `:EpitechGuard` run, for your own mappings.
+- `require("epitech").snippets_dir()` is the snippet folder.
 - `require("epitech").file_budget()` returns the current file's budget as
   text, for a statusline.
 - `require("epitech.rules").rules` lists the 42 rules of the coding style

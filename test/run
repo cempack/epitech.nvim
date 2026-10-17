@@ -42,11 +42,13 @@ run header_sync
 run move_header
 run scaffold
 run split
+run snippets
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.
 if command -v epiclang >/dev/null 2>&1; then
     run banana-real
+    run snippets-real
     run calibrate
 else
     printf '%s\n' 'Skipping Banana tests: epiclang is missing'

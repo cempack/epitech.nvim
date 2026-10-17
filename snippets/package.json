@@ -1,0 +1,6 @@
+{
+  "name": "epitech-snippets",
+  "contributes": {
+    "snippets": [{ "language": "c", "path": "./c.json" }]
+  }
+}

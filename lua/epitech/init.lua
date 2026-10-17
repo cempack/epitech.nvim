@@ -9,6 +9,12 @@ M.format_stdout = format.format_stdout
 M.insert_header = header.insert_header
 M.insert_guard = header.insert_guard
 
+-- The folder of the plugin's VS Code-style snippets, for blink.cmp's
+-- search_paths or LuaSnip's from_vscode loader.
+function M.snippets_dir()
+  return vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(format.path))) .. "/snippets"
+end
+
 -- The file budget ("functions 8/10 · non-static 5/5") for a lualine
 -- component; "" when the current buffer has none.
 function M.file_budget()
