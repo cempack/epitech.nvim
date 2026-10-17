@@ -160,6 +160,31 @@ for a long or backslash-continued `SRC` assignment (the first line keeps its
 makefile = { enabled = true, tab_width = 8 },
 ```
 
+### Header sync
+
+`:EpitechSyncHeader` updates the project header's prototypes (C-H1) from the
+non-static functions of the `.c` files that feed it, and reports
+`1 added · 1 changed · 0 removed`. The first time, it asks which header (when
+it isn't obvious) and which directories feed it (`src` by default; `lib/`
+usually has its own header), and remembers both. The prototypes live in a
+block inside the include guard, grouped by file:
+
+```c
+/* epitech.nvim: prototypes (:EpitechSyncHeader) */
+/* src/parse_args.c */
+int parse_args(int ac, char **av);
+/* epitech.nvim: end of prototypes */
+```
+
+On the first run, prototypes already in the header for those functions move
+into the block; the rest of the header is left alone. `static` functions and
+`main` stay out. An open header is edited in its buffer (so undo works),
+then formatted so long prototypes wrap at 80 columns.
+
+```lua
+header_sync = { group_by_file = true }, -- false: no /* file */ lines
+```
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one

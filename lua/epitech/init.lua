@@ -97,6 +97,10 @@ function M.setup(opts)
     end,
   })
 
+  command("EpitechSyncHeader", function()
+    require("epitech.header_sync").run(require("epitech.project").root(0))
+  end, "Update the project header's prototypes")
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)
