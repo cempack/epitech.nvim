@@ -67,6 +67,24 @@ Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
 `int f(void)`, are left to `epiclang`.
 
+## Configuration
+
+`require("epitech").setup(opts)` takes an optional table. Every option has a
+default, so `setup()` alone is enough. The options that exist today:
+
+```lua
+require("epitech").setup({
+  header = { keymap = "<leader>cH" }, -- :EpitechHeader; false for no mapping
+  guard = { keymap = "<leader>cG" }, -- :EpitechGuard; false for no mapping
+})
+```
+
+Mappings are only set when their keys are still free, and commands only when
+you haven't defined one with the same name. A feature with an `enabled` key
+can be turned off with `feature = false`. Lists replace the default list
+instead of extending it. Unknown options are ignored with a warning, and an
+option of the wrong type stops `setup()` with an error naming it.
+
 ## Lua API
 
 - `require("epitech").format_buffer(buf)` formats a buffer in place, the

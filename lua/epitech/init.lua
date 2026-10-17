@@ -1,3 +1,4 @@
+local config = require("epitech.config")
 local format = require("epitech.format")
 local header = require("epitech.header")
 
@@ -36,27 +37,26 @@ function M.formatter(opts)
   }
 end
 
-function M.setup()
-  if vim.api.nvim_get_commands({ builtin = false }).EpitechHeader == nil then
-    vim.api.nvim_create_user_command("EpitechHeader", M.insert_header, {
-      desc = "Insert an Epitech header",
-    })
+local function command(name, fn, desc)
+  if vim.api.nvim_get_commands({ builtin = false })[name] == nil then
+    vim.api.nvim_create_user_command(name, fn, { desc = desc })
   end
-  if vim.fn.maparg("<leader>cH", "n") == "" then
-    vim.keymap.set("n", "<leader>cH", M.insert_header, {
-      desc = "Epitech Header",
-    })
+end
+
+-- A mapping is only set when it's enabled and its keys are still free.
+local function keymap(lhs, fn, desc)
+  if lhs and vim.fn.maparg(lhs, "n") == "" then
+    vim.keymap.set("n", lhs, fn, { desc = desc })
   end
-  if vim.api.nvim_get_commands({ builtin = false }).EpitechGuard == nil then
-    vim.api.nvim_create_user_command("EpitechGuard", M.insert_guard, {
-      desc = "Add an include guard based on the header filename",
-    })
-  end
-  if vim.fn.maparg("<leader>cG", "n") == "" then
-    vim.keymap.set("n", "<leader>cG", M.insert_guard, {
-      desc = "Epitech Include Guard",
-    })
-  end
+end
+
+function M.setup(opts)
+  local options = config.setup(opts)
+
+  command("EpitechHeader", M.insert_header, "Insert an Epitech header")
+  keymap(options.header.keymap, M.insert_header, "Epitech Header")
+  command("EpitechGuard", M.insert_guard, "Add an include guard based on the header filename")
+  keymap(options.guard.keymap, M.insert_guard, "Epitech Include Guard")
 end
 
 return M
