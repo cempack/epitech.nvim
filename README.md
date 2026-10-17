@@ -106,6 +106,9 @@ never in your repository: C-O1 forbids unnecessary files there.
   current one when `buf` is omitted, exactly as `<leader>cf` does.
 - `require("epitech").insert_header()` and `insert_guard()` are what
   `:EpitechHeader` and `:EpitechGuard` run, for your own mappings.
+- `require("epitech.rules").rules` lists the 42 rules of the coding style
+  (code, title, severity, who checks it, a summary and examples);
+  `require("epitech.rules").by_code["C-L1"]` finds one.
 
 ## Tests
 
