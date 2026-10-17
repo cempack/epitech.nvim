@@ -216,6 +216,33 @@ file, so you're asked first. A new file gets its Epitech header (you give
 the description) and the source's `#include` lines. Then the file is added
 to `SRC` and `:EpitechSyncHeader` updates the project header.
 
+### Project check
+
+`<leader>cB` (or `:EpitechCheck`) checks every tracked `.c` and `.h` file
+with `epiclang`, runs the hints and the Makefile checks, and adds the
+repository rules: compiled or temporary files tracked by git (C-O1),
+C sources with another extension such as `.cpp` (C-O2), and file or folder
+names that aren't snake_case (C-O4). The result opens in Trouble when it's
+installed, else in the quickfix list, sorted by severity, then file, then
+line, titled `Epitech check: 0 fatal · 3 major · 5 minor · 2 info · 4 hints`.
+A header's problems are listed once, however many files include it.
+`:EpitechCheck untrack` runs `git rm --cached` on the C-O1 files and adds
+their patterns to `.gitignore`, after asking.
+
+The same check runs without an editor, for CI:
+
+```sh
+nvim --clean --headless -l /path/to/epitech.nvim/scripts/check.lua --ci .
+```
+
+It prints `path:line:col: [Level] message (CODE)` lines and the summary, and
+exits 1 when a level in `check.fail_on` occurs (hints never fail it). It
+needs git, and `epiclang` for the Banana part.
+
+```lua
+check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
+```
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one

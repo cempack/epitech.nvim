@@ -118,6 +118,22 @@ function M.setup(opts)
     require("epitech.split").move_to(args.args, args.line1 - 1, args.line2 - 1)
   end, "Move the selected functions to another file", { nargs = 1, range = true, complete = "file" })
 
+  command("EpitechCheck", function(args)
+    if args.args == "untrack" then
+      require("epitech.check").untrack()
+    else
+      require("epitech.check").open()
+    end
+  end, "Check the whole project against the Epitech coding style", {
+    nargs = "?",
+    complete = function()
+      return { "untrack" }
+    end,
+  })
+  keymap(options.check.keymap, function()
+    require("epitech.check").open()
+  end, "Epitech Check Project")
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)

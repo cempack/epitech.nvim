@@ -12,7 +12,7 @@ trap 'rm -rf "$XDG_DATA_HOME"' EXIT
 
 while IFS= read -r file; do
     luac -p "$file"
-done < <(find "$EPITECH_NVIM_DIR/lua" "$EPITECH_NVIM_DIR/after" "$EPITECH_NVIM_DIR/test" -type f -name '*.lua' -print)
+done < <(find "$EPITECH_NVIM_DIR/lua" "$EPITECH_NVIM_DIR/after" "$EPITECH_NVIM_DIR/scripts" "$EPITECH_NVIM_DIR/test" -type f -name '*.lua' -print)
 
 run() {
     nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/$1.lua"
@@ -43,6 +43,7 @@ run move_header
 run scaffold
 run split
 run snippets
+run check
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.
