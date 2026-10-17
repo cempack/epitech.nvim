@@ -243,6 +243,18 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   struct initializer, a `const` or `static` variable with an initializer, a
   variable-length array, the same name declared twice), a hint says why and
   there's no action.
+- **One statement per line** (C-L1), each pattern its own action:
+  **Split the chained assignment** (`a = b = 0;` gives `a = 0;` and
+  `b = 0;`; with a value that has side effects, it's computed once:
+  `b = f();` then `a = b;`), **Move i++ to its own line**
+  (`str[i++] = 'A';` gives `str[i] = 'A';` then `i++;`), **Move the
+  assignment out of the condition** (`if ((fd = open(…)) == -1)` gives
+  `fd = open(…);` then `if (fd == -1)`), and **Turn the && into an if**
+  (`a && f();` gives `if (a) { f(); }`, and `a || f();` gives
+  `if (!a) { … }`). A hint explains the cases without a fix: a variable
+  updated and read on the same line (undefined behaviour), an assignment in
+  an `else if` or on the right of `&&`/`||`, and an assignment in a loop
+  condition.
 
 Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
