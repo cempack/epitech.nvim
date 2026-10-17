@@ -1,7 +1,12 @@
 # epitech.nvim
 
-Neovim support for the Epitech C Coding Style: a formatter whose output passes
-Banana (`epiclang`), Epitech file headers, and include guards.
+Neovim support for the Epitech C Coding Style (v7.1), built for LazyVim and
+usable with any lazy.nvim setup: a formatter whose output passes Banana
+(`epiclang`), live Banana diagnostics, budget meters for function length,
+parameters, functions per file and nesting, hints for the rules a grader
+checks, code actions that fix violations, Epitech headers and include
+guards, and project tools (header sync, scaffolding, a whole-project check
+and a pre-push hook).
 
 ## Install
 
@@ -48,8 +53,13 @@ Requirements:
   stays inactive without it
 - [`mbake`](https://pypi.org/project/mbake/) for Makefiles, if you use the
   `bake` line above
-- `epiclang` (Epitech's Banana checker) for live diagnostics; everything else
-  works without it
+- `epiclang` (Epitech's Banana checker) for live diagnostics, the project
+  check and the push guard; everything else works without it
+- git, for the "could be static" hint, header sync, the project check and
+  the push guard
+- optional: clangd (LazyVim's clangd extra) finds call sites for **Pass x by
+  pointer** (`git grep` otherwise), Trouble shows the project check (the
+  quickfix list otherwise), blink.cmp or LuaSnip load the snippets
 
 ## What it does
 
@@ -64,6 +74,28 @@ Requirements:
   after the file (`my_macro_abs.h` becomes `MY_MACRO_ABS_H_`).
 - C buffers use four-space indentation with spaces, as the Epitech Vim config
   does.
+
+Formatting only changes layout. Structure and meaning (function length,
+parameters, naming, `int f()` instead of `int f(void)`…) are what the
+diagnostics, meters, hints and fixes below are for.
+
+| Command or key | What it does |
+|---|---|
+| `<leader>cf` | Format the buffer (through conform.nvim) |
+| `<leader>cH`, `:EpitechHeader` | Insert an Epitech header |
+| `<leader>cG`, `:EpitechGuard` | Add an include guard |
+| `<leader>cE`, `:EpitechExplain [code]` | Explain the rule under the cursor, or a given one |
+| `:EpitechRules` | List the 42 rules |
+| `<leader>ca` | Code actions: the fixes below, next to clangd's |
+| `:EpitechFixAll C-F6` | Add `(void)` everywhere in the project |
+| `:EpitechHints [on\|off]` | Show or hide the hints |
+| `:EpitechSyncHeader` | Update the project header's prototypes |
+| `:EpitechNew[!] [name]` | Create a project skeleton |
+| `:EpitechNewFile <path>` | Create a source file with its header, add it to `SRC` |
+| `:'<,'>EpitechMoveTo <path>` | Move the selected functions to another file |
+| `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
+| `:EpitechHooks [remove]` | Install (or remove) the pre-push hook |
+| `:EpitechLazygit` | Show a lazygit key for the check |
 
 ### Live Banana diagnostics
 
@@ -85,6 +117,65 @@ diagnostics = {
   cmd = "epiclang",
   args = { "-x", "c", "-fsyntax-only" }, -- include flags are added per project
   events = { "BufWritePost", "BufReadPost" },
+},
+```
+
+### Rule explainer
+
+`<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one
+of the plugin's hints opens a float that explains the rule: its code and
+title, its severity, who checks it (🍌 Banana, 👤 a grader), a short summary
+and a bad and a good example. With several rules on the line, the one under
+the cursor wins, else you choose; with none, you pick from the list.
+`:EpitechExplain C-F6` explains a given rule, and `:EpitechRules` lists all
+42 rules. Change or disable the key with `explain = { keymap = … }`.
+
+### Budget meters
+
+After each function's signature, a meter shows how much of its budget it
+uses: `13/20 lines · 2/4 args` (C-F4, C-F5). It's dim below 17 lines, in the
+warning color from 17 to 20 and in the error color past 20; the parameter
+count turns red past 4, and a variadic shows as `2/4 args + …`. The colors
+are the `EpitechBudgetOk`, `EpitechBudgetNear` and `EpitechBudgetOver`
+highlight groups (linked to `Comment`, `DiagnosticWarn` and `DiagnosticError`
+unless your colorscheme sets them).
+
+Each C file's winbar shows its file budget (C-O3):
+`src/parser.c   functions 8/10 · non-static 5/5`, each count in the warning
+color at its limit and the error color past it. Headers only get one when
+they define functions (`static inline`). The plugin only uses a winbar that's
+empty or its own, so another plugin's winbar is left alone. To show the
+budget in lualine instead, set `budget.file = "lualine"` and add a component:
+
+```lua
+{
+  "nvim-lualine/lualine.nvim",
+  opts = function(_, opts)
+    table.insert(opts.sections.lualine_c, {
+      function()
+        return require("epitech").file_budget()
+      end,
+    })
+  end,
+}
+```
+
+Control statements nested two levels deep or more get a depth label at the
+end of their line (C-C1): `depth 2`, `depth 2 (else + if)` on an `else if`
+(which counts as an `if` inside the `else`), and `depth 3 ✗ C-C1` in the
+error color. The first `if` of a chain with more than three branches gets
+`4 branches ✗ C-C1`. A `switch` counts as a level.
+
+```lua
+budget = {
+  functions = true, -- the meter after each signature
+  file = "winbar", -- "winbar", "lualine" (component only) or false
+  depth = true, -- the depth labels
+  max_lines = 20, warn_lines = 17,
+  max_args = 4,
+  max_functions = 10, max_non_static = 5,
+  max_depth = 3, show_depth_from = 2,
+  max_branches = 3,
 },
 ```
 
@@ -160,169 +251,6 @@ for a long or backslash-continued `SRC` assignment (the first line keeps its
 makefile = { enabled = true, tab_width = 8 },
 ```
 
-### Header sync
-
-`:EpitechSyncHeader` updates the project header's prototypes (C-H1) from the
-non-static functions of the `.c` files that feed it, and reports
-`1 added · 1 changed · 0 removed`. The first time, it asks which header (when
-it isn't obvious) and which directories feed it (`src` by default; `lib/`
-usually has its own header), and remembers both. The prototypes live in a
-block inside the include guard, grouped by file:
-
-```c
-/* epitech.nvim: prototypes (:EpitechSyncHeader) */
-/* src/parse_args.c */
-int parse_args(int ac, char **av);
-/* epitech.nvim: end of prototypes */
-```
-
-On the first run, prototypes already in the header for those functions move
-into the block; the rest of the header is left alone. `static` functions and
-`main` stay out. An open header is edited in its buffer (so undo works),
-then formatted so long prototypes wrap at 80 columns.
-
-```lua
-header_sync = { group_by_file = true }, -- false: no /* file */ lines
-```
-
-### New projects and files
-
-`:EpitechNew [name]` creates a project in the current directory (named after
-it by default): a `Makefile` with `all`, `clean`, `fclean`, `re` and a
-Criterion `tests_run`, `include/<name>.h` with its guard and an empty
-prototypes block, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
-build products. Everything has its Epitech header and passes the formatter
-and the Makefile checks. It refuses when a `Makefile` exists;
-`:EpitechNew!` overwrites.
-
-`:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
-(asking for the description), adds `SRC += src/parse_args.c` to the Makefile
-(`TESTS_SRC` for files under `tests/`) and opens it. A `.h` gets an include
-guard instead. When `SRC` is built with `$(wildcard …)` or doesn't exist,
-the Makefile is left alone and you're told what to add.
-
-```lua
-scaffold = { cflags = "-Wall -Wextra" },
-```
-
-### Splitting a file
-
-Select whole functions in a `.c` file (visual mode), then
-`:'<,'>EpitechMoveTo src/print_long.c` (C-O3: at most 10 functions per file).
-The functions move to that file, new or existing, with their comments and
-the static helpers only they use. A static helper both files would need has
-to become non-static, which counts against the 5 non-static functions per
-file, so you're asked first. A new file gets its Epitech header (you give
-the description) and the source's `#include` lines. Then the file is added
-to `SRC` and `:EpitechSyncHeader` updates the project header.
-
-### Project check
-
-`<leader>cB` (or `:EpitechCheck`) checks every tracked `.c` and `.h` file
-with `epiclang`, runs the hints and the Makefile checks, and adds the
-repository rules: compiled or temporary files tracked by git (C-O1),
-C sources with another extension such as `.cpp` (C-O2), and file or folder
-names that aren't snake_case (C-O4). The result opens in Trouble when it's
-installed, else in the quickfix list, sorted by severity, then file, then
-line, titled `Epitech check: 0 fatal · 3 major · 5 minor · 2 info · 4 hints`.
-A header's problems are listed once, however many files include it.
-`:EpitechCheck untrack` runs `git rm --cached` on the C-O1 files and adds
-their patterns to `.gitignore`, after asking.
-
-The same check runs without an editor, for CI:
-
-```sh
-nvim --clean --headless -l /path/to/epitech.nvim/scripts/check.lua --ci .
-```
-
-It prints `path:line:col: [Level] message (CODE)` lines and the summary, and
-exits 1 when a level in `check.fail_on` occurs (hints never fail it). It
-needs git, and `epiclang` for the Banana part.
-
-```lua
-check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
-```
-
-### Push guard
-
-`:EpitechHooks` installs a git pre-push hook in the current repository. A
-`git push`, from the terminal or lazygit, then runs the project check and
-stops while a Fatal or Major is left:
-
-```
-epitech.nvim: 2 Major left, push stopped. Run :EpitechCheck to see them, or git push --no-verify to skip.
-```
-
-The hook lives in `.git/hooks`, which git never tracks. When the repository
-already has a pre-push hook, you choose to chain it (it runs first), replace
-it, or cancel. `:EpitechHooks remove` deletes the plugin's hook and puts a
-chained one back. The hook uses absolute paths to Neovim and the plugin; if
-the plugin moves, you're warned once to run `:EpitechHooks` again.
-
-`:EpitechLazygit` shows a lazygit custom command (key `B` in the files
-panel) that runs the check; paste it into lazygit's `config.yml`. It uses
-`output: terminal` (lazygit 0.51 and later) or `subprocess: true` for older
-versions. The plugin never edits lazygit's config.
-
-### Rule explainer
-
-`<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one
-of the plugin's hints opens a float that explains the rule: its code and
-title, its severity, who checks it (🍌 Banana, 👤 a grader), a short summary
-and a bad and a good example. With several rules on the line, the one under
-the cursor wins, else you choose; with none, you pick from the list.
-`:EpitechExplain C-F6` explains a given rule, and `:EpitechRules` lists all
-42 rules. Change or disable the key with `explain = { keymap = … }`.
-
-### Budget meters
-
-After each function's signature, a meter shows how much of its budget it
-uses: `13/20 lines · 2/4 args` (C-F4, C-F5). It's dim below 17 lines, in the
-warning color from 17 to 20 and in the error color past 20; the parameter
-count turns red past 4, and a variadic shows as `2/4 args + …`. The colors
-are the `EpitechBudgetOk`, `EpitechBudgetNear` and `EpitechBudgetOver`
-highlight groups (linked to `Comment`, `DiagnosticWarn` and `DiagnosticError`
-unless your colorscheme sets them).
-
-Each C file's winbar shows its file budget (C-O3):
-`src/parser.c   functions 8/10 · non-static 5/5`, each count in the warning
-color at its limit and the error color past it. Headers only get one when
-they define functions (`static inline`). The plugin only uses a winbar that's
-empty or its own, so another plugin's winbar is left alone. To show the
-budget in lualine instead, set `budget.file = "lualine"` and add a component:
-
-```lua
-{
-  "nvim-lualine/lualine.nvim",
-  opts = function(_, opts)
-    table.insert(opts.sections.lualine_c, {
-      function()
-        return require("epitech").file_budget()
-      end,
-    })
-  end,
-}
-```
-
-Control statements nested two levels deep or more get a depth label at the
-end of their line (C-C1): `depth 2`, `depth 2 (else + if)` on an `else if`
-(which counts as an `if` inside the `else`), and `depth 3 ✗ C-C1` in the
-error color. The first `if` of a chain with more than three branches gets
-`4 branches ✗ C-C1`. A `switch` counts as a level.
-
-```lua
-budget = {
-  functions = true, -- the meter after each signature
-  file = "winbar", -- "winbar", "lualine" (component only) or false
-  depth = true, -- the depth labels
-  max_lines = 20, warn_lines = 17,
-  max_args = 4,
-  max_functions = 10, max_non_static = 5,
-  max_depth = 3, show_depth_from = 2,
-  max_branches = 3,
-},
-```
-
 ### Fix menu
 
 The plugin runs a small language server inside Neovim, called `epitech`, for
@@ -385,45 +313,61 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   the name gets a hint instead: with a pointer it would change the caller's
   struct, or the change can't be checked.
 
-Formatting only changes layout. Rules about structure or meaning, such as
-function length, parameter count, naming, or `int f()` instead of
-`int f(void)`, are left to `epiclang`.
+### Header sync
 
-## Configuration
+`:EpitechSyncHeader` updates the project header's prototypes (C-H1) from the
+non-static functions of the `.c` files that feed it, and reports
+`1 added · 1 changed · 0 removed`. The first time, it asks which header (when
+it isn't obvious) and which directories feed it (`src` by default; `lib/`
+usually has its own header), and remembers both. The prototypes live in a
+block inside the include guard, grouped by file:
 
-`require("epitech").setup(opts)` takes an optional table. Every option has a
-default, so `setup()` alone is enough. The options that exist today:
-
-```lua
-require("epitech").setup({
-  header = { keymap = "<leader>cH" }, -- :EpitechHeader; false for no mapping
-  guard = { keymap = "<leader>cG" }, -- :EpitechGuard; false for no mapping
-  fixes = { enabled = true }, -- the epitech language server's code actions
-  diagnostics = { enabled = true }, -- live Banana diagnostics, see below
-  explain = { keymap = "<leader>cE" }, -- explain the rule under the cursor
-})
+```c
+/* epitech.nvim: prototypes (:EpitechSyncHeader) */
+/* src/parse_args.c */
+int parse_args(int ac, char **av);
+/* epitech.nvim: end of prototypes */
 ```
 
-Mappings are only set when their keys are still free, and commands only when
-you haven't defined one with the same name. A feature with an `enabled` key
-can be turned off with `feature = false`. Lists replace the default list
-instead of extending it. Unknown options are ignored with a warning, and an
-option of the wrong type stops `setup()` with an error naming it.
+On the first run, prototypes already in the header for those functions move
+into the block; the rest of the header is left alone. `static` functions and
+`main` stay out. An open header is edited in its buffer (so undo works),
+then formatted so long prototypes wrap at 80 columns.
 
-## Project detection
+```lua
+header_sync = { group_by_file = true }, -- false: no /* file */ lines
+```
 
-Features that work on the whole project find its root from the current file:
-the nearest directory with `.git`, else with a `Makefile`, else the file's
-own directory. The project name is `NAME` from the Makefile, else the project
-line of an Epitech header, else the directory name. Include flags for
-`epiclang` come from `compile_commands.json` (at the root or in `build/`)
-when there is one, else `-I include` and `-I .`. When the project's main
-header isn't obvious (`include/<name>.h`, or the only header in `include/`),
-you're asked once.
+### New projects and files
 
-What the plugin remembers about a project is stored in
-`~/.local/share/nvim/epitech.nvim/projects.json` (Neovim's data directory),
-never in your repository: C-O1 forbids unnecessary files there.
+`:EpitechNew [name]` creates a project in the current directory (named after
+it by default): a `Makefile` with `all`, `clean`, `fclean`, `re` and a
+Criterion `tests_run`, `include/<name>.h` with its guard and an empty
+prototypes block, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
+build products. Everything has its Epitech header and passes the formatter
+and the Makefile checks. It refuses when a `Makefile` exists;
+`:EpitechNew!` overwrites.
+
+`:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
+(asking for the description), adds `SRC += src/parse_args.c` to the Makefile
+(`TESTS_SRC` for files under `tests/`) and opens it. A `.h` gets an include
+guard instead. When `SRC` is built with `$(wildcard …)` or doesn't exist,
+the Makefile is left alone and you're told what to add.
+
+```lua
+scaffold = { cflags = "-Wall -Wextra" },
+```
+
+### Splitting a file
+
+Select whole functions in a `.c` file (visual mode), then
+`:'<,'>EpitechMoveTo src/print_long.c` (C-O3: at most 10 functions per file).
+The functions move to that file, new or existing, with their comments and
+the static helpers only they use. A static helper both files would need has
+to become non-static, which counts against the 5 non-static functions per
+file, so you're asked first. A new file gets its Epitech header (you give
+the description) and the source's `#include` lines. Then the file is added
+to `SRC` and `:EpitechSyncHeader` updates the project header.
 
 ### Snippets
 
@@ -463,6 +407,126 @@ search paths, keeping the default one:
 With LuaSnip:
 `require("luasnip.loaders.from_vscode").lazy_load({ paths = { require("epitech").snippets_dir() } })`.
 
+### Project check
+
+`<leader>cB` (or `:EpitechCheck`) checks every tracked `.c` and `.h` file
+with `epiclang`, runs the hints and the Makefile checks, and adds the
+repository rules: compiled or temporary files tracked by git (C-O1),
+C sources with another extension such as `.cpp` (C-O2), and file or folder
+names that aren't snake_case (C-O4). The result opens in Trouble when it's
+installed, else in the quickfix list, sorted by severity, then file, then
+line, titled `Epitech check: 0 fatal · 3 major · 5 minor · 2 info · 4 hints`.
+A header's problems are listed once, however many files include it.
+`:EpitechCheck untrack` runs `git rm --cached` on the C-O1 files and adds
+their patterns to `.gitignore`, after asking.
+
+The same check runs without an editor, for CI:
+
+```sh
+nvim --clean --headless -l /path/to/epitech.nvim/scripts/check.lua --ci .
+```
+
+It prints `path:line:col: [Level] message (CODE)` lines and the summary, and
+exits 1 when a level in `check.fail_on` occurs (hints never fail it). It
+needs git, and `epiclang` for the Banana part.
+
+```lua
+check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
+```
+
+### Push guard
+
+`:EpitechHooks` installs a git pre-push hook in the current repository. A
+`git push`, from the terminal or lazygit, then runs the project check and
+stops while a Fatal or Major is left:
+
+```
+epitech.nvim: 2 Major left, push stopped. Run :EpitechCheck to see them, or git push --no-verify to skip.
+```
+
+The hook lives in `.git/hooks`, which git never tracks. When the repository
+already has a pre-push hook, you choose to chain it (it runs first), replace
+it, or cancel. `:EpitechHooks remove` deletes the plugin's hook and puts a
+chained one back. The hook uses absolute paths to Neovim and the plugin; if
+the plugin moves, you're warned once to run `:EpitechHooks` again.
+
+`:EpitechLazygit` shows a lazygit custom command (key `B` in the files
+panel) that runs the check; paste it into lazygit's `config.yml`. It uses
+`output: terminal` (lazygit 0.51 and later) or `subprocess: true` for older
+versions. The plugin never edits lazygit's config.
+
+## Configuration
+
+`require("epitech").setup(opts)` takes an optional table. Every option has a
+default, so `setup()` alone is enough. The defaults:
+
+```lua
+require("epitech").setup({
+  header = { keymap = "<leader>cH" }, -- :EpitechHeader
+  guard = { keymap = "<leader>cG" }, -- :EpitechGuard
+  diagnostics = {
+    enabled = true,
+    cmd = "epiclang",
+    args = { "-x", "c", "-fsyntax-only" }, -- include flags are added per project
+    events = { "BufWritePost", "BufReadPost" },
+  },
+  explain = { keymap = "<leader>cE" },
+  budget = {
+    functions = true, -- "13/20 lines · 2/4 args" after each signature
+    file = "winbar", -- "winbar", "lualine" (component only) or false
+    depth = true,
+    max_lines = 20, warn_lines = 17,
+    max_args = 4,
+    max_functions = 10, max_non_static = 5,
+    max_depth = 3, show_depth_from = 2,
+    max_branches = 3,
+  },
+  hints = {
+    enabled = true,
+    severity = vim.diagnostic.severity.HINT,
+    magic_numbers = { enabled = true, allow = { 0, 1, -1, 84 } },
+    static = true,
+    types = true,
+    naming = { enabled = true, verbs = nil, vague_files = nil }, -- nil: built-in lists
+  },
+  makefile = { enabled = true, tab_width = 8 },
+  fixes = { enabled = true },
+  header_sync = { group_by_file = true },
+  check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
+  scaffold = { cflags = "-Wall -Wextra" },
+})
+```
+
+Set a `keymap` to `false` for no mapping. Mappings are only set when their
+keys are still free, and commands only when you haven't defined one with the
+same name. A feature with an `enabled` key can be turned off with
+`feature = false` (`hints = { magic_numbers = false }`). Lists replace the
+default list instead of extending it. Unknown options are ignored with a
+warning, and an option of the wrong type stops `setup()` with an error
+naming it.
+
+Highlight groups, defined as defaults so your colorscheme can override
+them: `EpitechBudgetOk` (→ `Comment`), `EpitechBudgetNear`
+(→ `DiagnosticWarn`), `EpitechBudgetOver` (→ `DiagnosticError`) and
+`EpitechWinbar` (→ `WinBar`). Diagnostic namespaces: `epitech.banana`,
+`epitech.hints`, `epitech.makefile`; extmark namespaces: `epitech.budget`,
+`epitech.depth`.
+
+## Project detection
+
+Features that work on the whole project find its root from the current file:
+the nearest directory with `.git`, else with a `Makefile`, else the file's
+own directory. The project name is `NAME` from the Makefile, else the project
+line of an Epitech header, else the directory name. Include flags for
+`epiclang` come from `compile_commands.json` (at the root or in `build/`)
+when there is one, else `-I include` and `-I .`. When the project's main
+header isn't obvious (`include/<name>.h`, or the only header in `include/`),
+you're asked once.
+
+What the plugin remembers about a project is stored in
+`~/.local/share/nvim/epitech.nvim/projects.json` (Neovim's data directory),
+never in your repository: C-O1 forbids unnecessary files there.
+
 ## Lua API
 
 - `require("epitech").format_buffer(buf)` formats a buffer in place, the
@@ -485,13 +549,15 @@ With LuaSnip:
 test/run
 ```
 
-Tests that need the real `epiclang` (the formatter tests, which also need
-`~/.vim/epitech.vim`, and a Banana diagnostics test) are skipped when it is
-missing; the rest of the suite uses a stand-in.
+Tests that need the real `epiclang` are skipped when it is missing: the
+formatter tests (which also need `~/.vim/epitech.vim`), a Banana diagnostics
+test, a snippet check, and `test/calibrate.lua`, which measures how Banana
+counts lines, parameters, depth and branches and fails where the plugin's
+meters disagree with it. The rest of the suite uses a stand-in.
 
 The suite runs with a temporary `XDG_DATA_HOME`, so it never touches the
 plugin's state in your own data directory. Test scripts share the helpers in
 `test/helpers.lua`: `assert_equal`, `temp_project` (a temp git repository
 built from a table of files), `with_fake_epiclang` (a stand-in `epiclang` that
-prints canned Banana output, so nothing but calibration needs the real tool)
-and `buffer`.
+prints canned Banana output), `buffer`, and helpers that run code actions
+through the real language server.
