@@ -104,11 +104,21 @@ them back, and `:EpitechHints` toggles.
   in the file. The `#define` goes in the project header, inside its include
   guard (C-H1), and the file gets the `#include` it needs.
 
+- **Could be static** (C-A4, C-O3): a non-static function, other than
+  `main`, that no other `.c` file of the project mentions gets
+  `C-A4 only used in this file`. The project is searched with `git grep`
+  when you save. **Add static** makes it static (and its prototypes in the
+  file too). When a header declares it, the action is **Add static and
+  remove the prototype from include/x.h**, offered only when nothing in the
+  file uses the function before its definition; otherwise the program
+  wouldn't compile, so there's no action. Needs git.
+
 ```lua
 hints = {
   enabled = true,
   severity = vim.diagnostic.severity.HINT,
   magic_numbers = { enabled = true, allow = { 0, 1, -1, 84 } },
+  static = true,
 },
 ```
 

@@ -238,6 +238,24 @@ function M.parse_file(path)
   return cached
 end
 
+-- The prototypes in the project's tracked headers, read from their buffers
+-- when loaded: collect_prototypes() entries plus `file` (relative to root)
+-- and `source` (the header's text).
+function M.header_prototypes(root)
+  local result = {}
+  local util = require("epitech.util")
+  for _, file in ipairs(require("epitech.project").files(root, { "*.h" }) or {}) do
+    local src = table.concat(util.read_lines(root .. "/" .. file), "\n")
+    local tree = M.parse_string(src)
+    for _, proto in ipairs(tree and M.collect_prototypes(tree, src) or {}) do
+      proto.file = file
+      proto.source = src
+      result[#result + 1] = proto
+    end
+  end
+  return result
+end
+
 -- { [name] = { file, is_static, row } } over the project's tracked .c files.
 -- When several files define the same name, the non-static one wins.
 function M.project_functions(root)

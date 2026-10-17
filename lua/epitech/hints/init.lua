@@ -12,7 +12,7 @@ local M = {}
 M.ns = vim.api.nvim_create_namespace("epitech.hints")
 
 -- Hint modules under hints/, by id. Each is { id, enabled(options), run }.
-M.modules = { "magic" }
+M.modules = { "magic", "static" }
 
 local active = true
 
@@ -69,6 +69,7 @@ function M.refresh(buf)
     root = project.root(buf),
     tree = ts.root(buf),
     buf = buf,
+    static_used = require("epitech.hints.static").cached_used(buf),
   })
   local banana = vim.diagnostic.get(buf, { namespace = require("epitech.banana").ns })
   vim.diagnostic.set(M.ns, buf, M.dedup(hints, banana))
@@ -123,6 +124,20 @@ function M.setup(options)
       end
     end,
   })
+  if options.hints.static then
+    -- C-A4 needs a git grep over the project: on save, and on entering a
+    -- buffer whose last search is out of date.
+    vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter" }, {
+      group = group,
+      callback = function(args)
+        if vim.bo[args.buf].filetype == "c" and vim.api.nvim_buf_get_name(args.buf):match("%.c$") then
+          require("epitech.hints.static").search(args.buf, project.root(args.buf), function()
+            M.refresh(args.buf)
+          end)
+        end
+      end,
+    })
+  end
   vim.api.nvim_create_autocmd("BufWipeout", {
     group = group,
     callback = function(args)

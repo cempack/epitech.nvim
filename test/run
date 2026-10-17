@@ -29,6 +29,7 @@ run banana
 run explain
 run budget
 run magic
+run static
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.
