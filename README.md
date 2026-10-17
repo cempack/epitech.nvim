@@ -263,6 +263,15 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   `default:`, and each branch gets a `break;` unless it already ends in
   `return`, `break`, `continue` or `exit(…)`. A `break` or `continue` in a
   branch, or a declaration, means no conversion, with a hint saying why.
+- **Pass x by pointer** (C-F7): on a function taking a struct by value, the
+  parameter becomes `point_t const *point`, `point.x` becomes `point->x`,
+  other uses become `*point`, the prototypes follow, and every call gets
+  `&` (`sum_point(&origin)`). Call sites come from clangd when it's attached,
+  else from `git grep`. A call whose argument isn't a variable (a struct
+  returned by a function) goes to the quickfix list for you to fix. A
+  function that modifies its copy, takes its address, calls itself or hides
+  the name gets a hint instead: with a pointer it would change the caller's
+  struct, or the change can't be checked.
 
 Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of

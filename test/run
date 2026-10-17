@@ -37,6 +37,7 @@ run void
 run decl
 run one_stmt
 run switch
+run struct_ptr
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.
