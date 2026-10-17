@@ -252,6 +252,11 @@ blink's snippet source loads every path in `sources.providers.snippets.opts.sear
 
 `vim.fs.root(buf, { ".git", "Makefile" })`, `vim.system` (async, `:kill()`), `vim.diagnostic.set`, `nvim_buf_set_extmark` (`virt_text`, `virt_text_pos = "eol"`, `virt_lines`), the window-local `winbar` option, `vim.ui.select` and `vim.ui.input` (LazyVim routes them to Snacks), `vim.lsp.util.open_floating_preview`, `vim.fn.setqflist({}, " ", { title = …, items = … })`, `vim.json.decode`, `vim.uv`. Neovim 0.11 also has `vim.diagnostic.config({ virtual_lines = true })`; that's the user's choice, so never change their diagnostic config.
 
+### 6.6 Neovim 0.12 (checked with 0.12.5 on Elliot's machine)
+
+- `vim.glob.to_lpeg("#*#")` no longer matches `#notes.c#` (`*.o`, `*~` and `vgcore.*` still match). The project check matches its C-O1 patterns with a plain Lua pattern instead.
+- `vim.system` raises an error when `cwd` doesn't exist (0.11 didn't get there in practice). `project.files` returns nil for a missing root, which happens when a check finishes after its project was deleted.
+
 ---
 
 ## 7. Configuration
@@ -963,6 +968,7 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 - **§9.22 `lua/epitech/hooks.lua`.** `MARKER`, `script_path`, `hooks_dir` (`git rev-parse --git-path hooks`), `content(chain)`, `install(root, on_done)`, `remove(root)`, `stale(root)`, `check_stale()` (deferred from `setup()`, warns once), `lazygit_version`, `lazygit_yaml(version)`, `show_lazygit()` (a float). Chaining renames the existing hook to `pre-push.local`, which runs first with the same arguments and stdin; `remove` puts it back. The hook passes `--hook` to the check script for the push-stopped message. lazygit replaced `subprocess`/`stream`/`showOutput` with `output` in 0.51.0 (PR #4525), so older versions get `subprocess: true`. Tested in `test/hooks.lua` (the hook really runs, with the fake epiclang). Commit `feat: guard pushes with a pre-push hook`.
 - **Caches for the hint runner.** `project.files` caches tracked-file lists until `.git/index` changes (never with `untracked`) and sorts its result; `ts.header_prototypes` parses each header text once. Hints run on every pause in typing, so these keep `git` and header parsing out of the loop. Commit `perf: cache file lists and header parses for hints`.
 - **README reorganized** once every feature was in: intro, install and requirements (git, epiclang and the optional clangd, Trouble, blink.cmp/LuaSnip), a commands table, one section per feature in the order a user meets them, the full `setup()` defaults, highlight groups and namespaces. Commit `docs: reorganize the README around the finished features`.
+- **Neovim 0.12 fixes** (§6.6): C-O1 patterns matched without `vim.glob`, and `project.files` returns nil for a missing root. Found by the first full run on Elliot's machine (Neovim 0.12.5, clang-format 22.1.8). Commit `fix: keep the project check working on Neovim 0.12`.
 
 ---
 

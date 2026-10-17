@@ -30,10 +30,17 @@ local function entry(path, lnum, col, level, code, message)
 end
 
 -- The C-O1 pattern a tracked file matches, if any.
+-- Whether a file name matches a pattern whose only wildcard is `*`.
+-- vim.glob isn't used: Neovim 0.12's stops matching `#*#`.
+local function glob_match(pattern, name)
+  local lua_pattern = pattern:gsub("[%^%$%(%)%%%.%[%]%+%-%?]", "%%%0"):gsub("%*", ".*")
+  return name:match("^" .. lua_pattern .. "$") ~= nil
+end
+
 function M.unwanted_pattern(file)
   local name = vim.fs.basename(file)
   for _, pattern in ipairs(M.unwanted) do
-    if vim.glob.to_lpeg(pattern):match(name) then
+    if glob_match(pattern, name) then
       return pattern
     end
   end

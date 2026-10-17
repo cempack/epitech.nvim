@@ -31,6 +31,11 @@ end
 local files_cache = {}
 
 function M.files(root, pathspecs, opts)
+  -- A project deleted while a check was running (Neovim 0.12's vim.system
+  -- raises an error on a missing cwd).
+  if vim.fn.isdirectory(root) == 0 then
+    return nil
+  end
   -- Hints ask on every pause in typing: tracked files only change with the
   -- index, so answers are cached until .git/index changes.
   local index = not (opts and opts.untracked) and vim.uv.fs_stat(root .. "/.git/index")
