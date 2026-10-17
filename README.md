@@ -88,6 +88,30 @@ diagnostics = {
 },
 ```
 
+### Hints
+
+Some rules are checked by a grader, not by Banana. For those, the plugin
+shows hints (HINT diagnostics with `source = "epitech.nvim"`): guesses, so
+read them as questions. A hint disappears when Banana reports the same rule
+on the same line. `:EpitechHints off` hides them, `:EpitechHints on` brings
+them back, and `:EpitechHints` toggles.
+
+- **Magic numbers** (C-G9): a number inside a function body that isn't 0, 1,
+  -1 or 84 (Epitech's error exit code) gets `C-G9 name this number?`. The
+  code action **Extract 4096 into a macro…** asks for a name (suggesting
+  `BUFFER_SIZE` for `char buffer[4096]`), offers the project's existing
+  macros with the same value first, and can replace every identical number
+  in the file. The `#define` goes in the project header, inside its include
+  guard (C-H1), and the file gets the `#include` it needs.
+
+```lua
+hints = {
+  enabled = true,
+  severity = vim.diagnostic.severity.HINT,
+  magic_numbers = { enabled = true, allow = { 0, 1, -1, 84 } },
+},
+```
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one

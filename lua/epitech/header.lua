@@ -195,6 +195,43 @@ local function remove_pragma_once(buf, lines, row)
   vim.api.nvim_buf_set_lines(buf, row - 1, last, false, {})
 end
 
+-- The include guard macro for a header file name: my_macro_abs.h gives
+-- MY_MACRO_ABS_H_.
+function M.guard_name(filename)
+  local guard = vim.fs.basename(filename):gsub("[^%w]", "_"):upper() .. "_"
+  if not guard:match("^[A-Z]") then
+    guard = "HEADER_" .. guard
+  end
+  return guard
+end
+
+-- Rows (1-based) of a header's guard: its #ifndef, its #define and the
+-- final #endif, or nil when it has none.
+function M.guard_rows(lines)
+  for i = 1, math.min(#lines, 30) do
+    local name = lines[i]:match("^%s*#%s*ifndef%s+([%a_][%w_]*)%s*$")
+    if name then
+      for j = i + 1, math.min(i + 5, #lines) do
+        if lines[j]:match("^%s*#%s*define%s+" .. name .. "%s*$") then
+          for k = #lines, j + 1, -1 do
+            if lines[k]:match("^%s*#%s*endif") then
+              return i, j, k
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+-- The lines of a new header file: the Epitech header, then an empty guard.
+function M.new_header(path, project, description)
+  local guard = M.guard_name(path)
+  local lines = header_lines(comment_styles.c, project, description, os.date("%Y"))
+  vim.list_extend(lines, { "", "#ifndef " .. guard, "    #define " .. guard, "", "#endif" })
+  return lines
+end
+
 function M.insert_guard()
   local buf = vim.api.nvim_get_current_buf()
   local filename = vim.fs.basename(vim.api.nvim_buf_get_name(buf))
@@ -222,11 +259,7 @@ function M.insert_guard()
     return
   end
 
-  local guard = filename:gsub("[^%w]", "_"):upper() .. "_"
-  if not guard:match("^[A-Z]") then
-    guard = "HEADER_" .. guard
-  end
-
+  local guard = M.guard_name(filename)
   local wrapped = {}
   local body_start = 1
   if has_header(buf) then

@@ -6,13 +6,12 @@
 local M = {}
 
 -- Fix modules under lua/epitech/fixes/, by id.
-M.modules = {}
+M.modules = { "macro" }
 
-local registered
+local registered, modules_loaded = {}, false
 
 -- Adds a fix module, and its client-side commands to vim.lsp.commands.
 function M.register(fix)
-  registered = registered or {}
   for _, existing in ipairs(registered) do
     if existing.id == fix.id then
       return
@@ -25,8 +24,8 @@ function M.register(fix)
 end
 
 function M.list()
-  if not registered then
-    registered = {}
+  if not modules_loaded then
+    modules_loaded = true
     for _, id in ipairs(M.modules) do
       M.register(require("epitech.fixes." .. id))
     end
@@ -44,6 +43,22 @@ function M.actions(buf, range, context)
   for _, fix in ipairs(M.list()) do
     if vim.list_contains(fix.filetypes or { "c" }, filetype) then
       vim.list_extend(result, fix.actions(buf, range, context or {}) or {})
+    end
+  end
+  return result
+end
+
+-- Hints from fix modules that explain why no fix is offered somewhere (a
+-- fix module's optional hints(src, path, ctx)). They're kept even when
+-- Banana reports the same code on the line: that's what they explain.
+function M.hints(src, path, ctx)
+  local result = {}
+  for _, fix in ipairs(M.list()) do
+    if fix.hints then
+      for _, diagnostic in ipairs(fix.hints(src, path, ctx)) do
+        diagnostic.user_data = vim.tbl_extend("force", diagnostic.user_data or {}, { keep = true })
+        result[#result + 1] = diagnostic
+      end
     end
   end
   return result

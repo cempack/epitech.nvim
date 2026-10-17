@@ -79,9 +79,19 @@ function M.setup(opts)
     require("epitech.explain").explain()
   end, "Epitech Explain Rule")
 
+  command("EpitechHints", function(args)
+    require("epitech.hints").toggle(args.args ~= "" and args.args or nil)
+  end, "Turn the Epitech hints on or off", {
+    nargs = "?",
+    complete = function()
+      return { "on", "off" }
+    end,
+  })
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)
+  require("epitech.hints").setup(options)
 end
 
 return M

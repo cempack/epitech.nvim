@@ -198,6 +198,31 @@ function M.include_flags(root, file)
   return flags
 end
 
+-- How file includes header: relative to an include directory from the
+-- project's flags when the header is in one (include/my.h gives "my.h"),
+-- else relative to file's own directory.
+function M.include_name(root, file, header_path)
+  local best
+  for _, flag in ipairs(M.include_flags(root, file)) do
+    local dir = flag:match("^%-I(.+)$")
+    local relative = dir and require("epitech.util").relative(header_path, dir)
+    if relative and (not best or #relative < #best) then
+      best = relative
+    end
+  end
+  if best then
+    return best
+  end
+  local from = vim.fs.dirname(absolute(file))
+  local to = absolute(header_path)
+  local up = ""
+  while not vim.startswith(to, from .. "/") and from ~= "/" do
+    from = vim.fs.dirname(from)
+    up = up .. "../"
+  end
+  return up .. to:sub(from == "/" and 2 or #from + 2)
+end
+
 function M.state_file()
   return vim.fn.stdpath("data") .. "/epitech.nvim/projects.json"
 end
