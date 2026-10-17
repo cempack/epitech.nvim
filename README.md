@@ -109,6 +109,9 @@ never in your repository: C-O1 forbids unnecessary files there.
 - `require("epitech.rules").rules` lists the 42 rules of the coding style
   (code, title, severity, who checks it, a summary and examples);
   `require("epitech.rules").by_code["C-L1"]` finds one.
+- `require("epitech.ts").functions(buf)` lists a C buffer's functions (name,
+  static or not, parameters, body length) with Neovim's bundled C parser;
+  nvim-treesitter isn't needed.
 
 ## Tests
 
