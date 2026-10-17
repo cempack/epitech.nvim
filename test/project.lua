@@ -59,6 +59,13 @@ h.assert_equal(project.root(lonely .. "/alone.c"), lonely, "a file outside any p
 -- files(): tracked files, or nil outside git.
 h.assert_equal(project.files(root, { "*.c" }), { "lib/my/my_putstr.c", "src/main.c" }, "tracked C files")
 h.assert_equal(project.files(lonely, { "*.c" }), nil, "files() outside git")
+vim.fn.writefile({}, root .. "/src/new.c")
+h.assert_equal(project.files(root, { "*.c" }), { "lib/my/my_putstr.c", "src/main.c" }, "untracked files left out")
+h.assert_equal(project.files(root, { "*.c" }, { untracked = true }), { "lib/my/my_putstr.c", "src/main.c", "src/new.c" },
+  "untracked files on request")
+vim.system({ "git", "add", "src/new.c" }, { cwd = root }):wait()
+h.assert_equal(project.files(root, { "*.c" }), { "lib/my/my_putstr.c", "src/main.c", "src/new.c" },
+  "the cache follows the index")
 
 -- name(): NAME, else a header's project line, else the directory name.
 h.assert_equal(project.name(root), "my_ls", "NAME from the Makefile, comment dropped")

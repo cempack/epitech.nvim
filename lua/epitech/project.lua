@@ -26,9 +26,19 @@ function M.root(source)
 end
 
 -- Tracked files under root matching the git pathspecs (e.g. "*.c"), relative
--- to root, or nil when root isn't inside a git repository. With
+-- to root and sorted, or nil when root isn't inside a git repository. With
 -- opts.untracked, files not added yet (but not ignored) count too.
+local files_cache = {}
+
 function M.files(root, pathspecs, opts)
+  -- Hints ask on every pause in typing: tracked files only change with the
+  -- index, so answers are cached until .git/index changes.
+  local index = not (opts and opts.untracked) and vim.uv.fs_stat(root .. "/.git/index")
+  local key = index and table.concat({ root, index.mtime.sec, index.mtime.nsec, index.size,
+    table.concat(pathspecs or {}, "\0") }, "\0")
+  if key and files_cache[key] then
+    return vim.deepcopy(files_cache[key])
+  end
   local cmd = { "git", "ls-files" }
   if opts and opts.untracked then
     vim.list_extend(cmd, { "--cached", "--others", "--exclude-standard" })
@@ -39,7 +49,12 @@ function M.files(root, pathspecs, opts)
   if result.code ~= 0 then
     return nil
   end
-  return vim.split(result.stdout, "\n", { trimempty = true })
+  local files = vim.split(result.stdout, "\n", { trimempty = true })
+  table.sort(files)
+  if key then
+    files_cache[key] = vim.deepcopy(files)
+  end
+  return files
 end
 
 local function read_head(path, count)

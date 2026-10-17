@@ -241,16 +241,25 @@ end
 -- The prototypes in the project's tracked headers, read from their buffers
 -- when loaded: collect_prototypes() entries plus `file` (relative to root)
 -- and `source` (the header's text).
+local header_cache, cached_headers = {}, 0
+
 function M.header_prototypes(root)
   local result = {}
   local util = require("epitech.util")
   for _, file in ipairs(require("epitech.project").files(root, { "*.h" }) or {}) do
     local src = table.concat(util.read_lines(root .. "/" .. file), "\n")
-    local tree = M.parse_string(src)
-    for _, proto in ipairs(tree and M.collect_prototypes(tree, src) or {}) do
-      proto.file = file
-      proto.source = src
-      result[#result + 1] = proto
+    -- Hints call this on every pause in typing: each header text is parsed
+    -- once.
+    if not header_cache[src] then
+      if cached_headers > 200 then
+        header_cache, cached_headers = {}, 0
+      end
+      local tree = M.parse_string(src)
+      header_cache[src] = tree and M.collect_prototypes(tree, src) or {}
+      cached_headers = cached_headers + 1
+    end
+    for _, proto in ipairs(header_cache[src]) do
+      result[#result + 1] = vim.tbl_extend("force", proto, { file = file, source = src })
     end
   end
   return result
