@@ -169,6 +169,11 @@ vim.fn.writefile({
   "set fileformat=unix",
 }, vim_config)
 
+-- The formatter subprocess loads format.lua with dofile() outside the plugin's
+-- runtimepath, so a require there would break format-on-save.
+local format_source = table.concat(vim.fn.readfile(plugin .. "/lua/epitech/format.lua"), "\n")
+assert(not format_source:find("require%s*%(?%s*[\"']"), "format.lua must not require anything")
+
 local formatter = epitech.formatter({ vim_config = vim_config })
 assert(formatter.condition(), "formatter should be available")
 local input = table.concat({
@@ -203,6 +208,24 @@ assert_equal(result.stdout, table.concat({
   "}",
   "",
 }, "\n"), "formatter output")
+
+-- format_buffer() formats any buffer, not only the current one, including the
+-- Treesitter passes (here the C-L6 blank line after the declarations).
+local current_buf = vim.api.nvim_get_current_buf()
+local current_lines = vim.api.nvim_buf_get_lines(current_buf, 0, -1, false)
+local other_buf = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_buf_set_lines(other_buf, 0, -1, false, { "int get_one(void){int one = 1;return one;}" })
+epitech.format_buffer(other_buf)
+assert_equal(vim.api.nvim_buf_get_lines(other_buf, 0, -1, false), {
+  "int get_one(void)",
+  "{",
+  "    int one = 1;",
+  "",
+  "    return one;",
+  "}",
+}, "format_buffer on another buffer")
+assert_equal(vim.api.nvim_get_current_buf(), current_buf, "format_buffer keeps the current buffer")
+assert_equal(vim.api.nvim_buf_get_lines(current_buf, 0, -1, false), current_lines, "current buffer untouched")
 
 vim.cmd("filetype plugin on")
 vim.bo.filetype = "c"

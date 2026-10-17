@@ -931,6 +931,7 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 ## 13. Already done
 
 - **`#pragma once` is no longer treated as an include guard.** `has_guard()` used to count it as one, so `:EpitechGuard` said "already has an include guard" on files using a construct the coding style lists as unsupported. Now `:EpitechGuard` removes `#pragma once` and wraps the file in `#ifndef`/`#define`/`#endif`, or only removes it when a real guard already exists, with a notification either way. Covered by three cases in `test/nvim.lua` and a "pragma once" case in `test/format-guard.lua`. Commit `fix: replace #pragma once instead of treating it as an include guard`.
+- **§8.0.1 The formatter lives in `lua/epitech/format.lua`.** It requires nothing (a test in `test/nvim.lua` greps for `require`), exports `path`, `style_file` and `indent_preprocessor`, and `format_buffer(buf)` formats any buffer (current by default). `formatter()` runs `dofile` on it; `init.lua` re-exports `format_buffer` and `format_stdout` and may now require modules. Commit `refactor: move the formatter to lua/epitech/format.lua`.
 
 ---
 

@@ -67,6 +67,11 @@ Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
 `int f(void)`, are left to `epiclang`.
 
+## Lua API
+
+- `require("epitech").format_buffer(buf)` formats a buffer in place, the
+  current one when `buf` is omitted, exactly as `<leader>cf` does.
+
 ## Tests
 
 ```sh
