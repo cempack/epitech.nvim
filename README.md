@@ -71,6 +71,8 @@ function length, parameter count, naming, or `int f()` instead of
 
 - `require("epitech").format_buffer(buf)` formats a buffer in place, the
   current one when `buf` is omitted, exactly as `<leader>cf` does.
+- `require("epitech").insert_header()` and `insert_guard()` are what
+  `:EpitechHeader` and `:EpitechGuard` run, for your own mappings.
 
 ## Tests
 

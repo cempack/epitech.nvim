@@ -34,6 +34,16 @@ end
 epitech.insert_header()
 assert_equal(vim.api.nvim_buf_get_lines(0, 0, 6, false), expected_header, "header insertion")
 
+-- header.lua's helpers are shared with other modules (project names, header
+-- sync), so check what they return directly.
+local header = require("epitech.header")
+local start, style, project, description = header.existing_header(vim.api.nvim_buf_get_lines(0, 0, -1, false))
+assert_equal({ start, style[1], project, description }, { 1, "/*", "Day 08", "Copy string in allocated memory" },
+  "existing_header fields")
+assert_equal(header.has_header(0), true, "has_header on a C header")
+assert_equal(header.has_guard({ "#ifndef A_H_", "    #define A_H_", "#endif" }), true, "has_guard")
+assert_equal(header.has_guard({ "#pragma once" }), false, "#pragma once is not a guard")
+
 local before = vim.api.nvim_buf_line_count(0)
 local notice
 vim.notify = function(message)
