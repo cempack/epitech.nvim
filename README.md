@@ -88,6 +88,16 @@ diagnostics = {
 },
 ```
 
+### Rule explainer
+
+`<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one
+of the plugin's hints opens a float that explains the rule: its code and
+title, its severity, who checks it (🍌 Banana, 👤 a grader), a short summary
+and a bad and a good example. With several rules on the line, the one under
+the cursor wins, else you choose; with none, you pick from the list.
+`:EpitechExplain C-F6` explains a given rule, and `:EpitechRules` lists all
+42 rules. Change or disable the key with `explain = { keymap = … }`.
+
 ### Fix menu
 
 The plugin runs a small language server inside Neovim, called `epitech`, for
@@ -112,6 +122,7 @@ require("epitech").setup({
   guard = { keymap = "<leader>cG" }, -- :EpitechGuard; false for no mapping
   fixes = { enabled = true }, -- the epitech language server's code actions
   diagnostics = { enabled = true }, -- live Banana diagnostics, see below
+  explain = { keymap = "<leader>cE" }, -- explain the rule under the cursor
 })
 ```
 

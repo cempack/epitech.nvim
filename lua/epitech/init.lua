@@ -37,9 +37,9 @@ function M.formatter(opts)
   }
 end
 
-local function command(name, fn, desc)
+local function command(name, fn, desc, opts)
   if vim.api.nvim_get_commands({ builtin = false })[name] == nil then
-    vim.api.nvim_create_user_command(name, fn, { desc = desc })
+    vim.api.nvim_create_user_command(name, fn, vim.tbl_extend("force", { desc = desc }, opts or {}))
   end
 end
 
@@ -57,6 +57,21 @@ function M.setup(opts)
   keymap(options.header.keymap, M.insert_header, "Epitech Header")
   command("EpitechGuard", M.insert_guard, "Add an include guard based on the header filename")
   keymap(options.guard.keymap, M.insert_guard, "Epitech Include Guard")
+
+  command("EpitechExplain", function(args)
+    require("epitech.explain").explain(args.args)
+  end, "Explain an Epitech coding style rule", {
+    nargs = "?",
+    complete = function(lead)
+      return require("epitech.explain").complete(lead)
+    end,
+  })
+  command("EpitechRules", function()
+    require("epitech.explain").pick()
+  end, "List the Epitech coding style rules")
+  keymap(options.explain.keymap, function()
+    require("epitech.explain").explain()
+  end, "Epitech Explain Rule")
 
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)

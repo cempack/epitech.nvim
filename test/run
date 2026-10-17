@@ -26,6 +26,7 @@ run rules
 run ts
 run lsp
 run banana
+run explain
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.
