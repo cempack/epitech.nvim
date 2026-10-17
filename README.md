@@ -288,6 +288,14 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   `default:`, and each branch gets a `break;` unless it already ends in
   `return`, `break`, `continue` or `exit(…)`. A `break` or `continue` in a
   branch, or a declaration, means no conversion, with a hint saying why.
+- **Move to include/x.h** (C-H1): type definitions, struct, enum and union
+  declarations, macros and non-static prototypes in a `.c` file get the hint
+  `C-H1 belongs in a header`. The action moves them into
+  `include/<file>.h` when it exists, else the project header: inside the
+  include guard, before the prototypes block of `:EpitechSyncHeader`, with
+  macros indented for C-G3, and adds the `#include` to the `.c`. A `static`
+  function's prototype can't go in a header: the action moves the definition
+  (with its comment) above its first use and deletes the prototype.
 - **Pass x by pointer** (C-F7): on a function taking a struct by value, the
   parameter becomes `point_t const *point`, `point.x` becomes `point->x`,
   other uses become `*point`, the prototypes follow, and every call gets

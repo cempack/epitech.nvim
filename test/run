@@ -39,6 +39,7 @@ run one_stmt
 run switch
 run struct_ptr
 run header_sync
+run move_header
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.

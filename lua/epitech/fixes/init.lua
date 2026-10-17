@@ -6,7 +6,7 @@
 local M = {}
 
 -- Fix modules under lua/epitech/fixes/, by id.
-M.modules = { "macro", "static", "const", "makefile", "void", "decl", "one_stmt", "switch", "struct_ptr" }
+M.modules = { "macro", "static", "const", "makefile", "void", "decl", "one_stmt", "switch", "struct_ptr", "move_header" }
 
 local registered, modules_loaded = {}, false
 
@@ -48,15 +48,16 @@ function M.actions(buf, range, context)
   return result
 end
 
--- Hints from fix modules that explain why no fix is offered somewhere (a
--- fix module's optional hints(src, path, ctx)). They're kept even when
+-- Hints from fix modules (their optional hints(src, path, ctx)), mostly
+-- explaining why no fix is offered somewhere. Those are kept even when
 -- Banana reports the same code on the line: that's what they explain.
 function M.hints(src, path, ctx)
   local result = {}
   for _, fix in ipairs(M.list()) do
     if fix.hints then
       for _, diagnostic in ipairs(fix.hints(src, path, ctx)) do
-        diagnostic.user_data = vim.tbl_extend("force", diagnostic.user_data or {}, { keep = true })
+        -- A fix module marks an ordinary guess with keep = false.
+        diagnostic.user_data = vim.tbl_extend("keep", diagnostic.user_data or {}, { keep = true })
         result[#result + 1] = diagnostic
       end
     end

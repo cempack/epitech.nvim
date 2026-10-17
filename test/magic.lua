@@ -20,9 +20,14 @@ h.assert_equal({ magic.value("4096"), magic.value("0x1F"), magic.value("010"), m
 -- in #define, enums or global constants.
 local fixture = vim.fn.readfile(plugin .. "/test/fixtures/hints/magic.c")
 local src = table.concat(fixture, "\n")
+local function only_g9(diagnostics)
+  return vim.tbl_filter(function(d)
+    return d.code == "C-G9"
+  end, diagnostics)
+end
 local found = vim.tbl_map(function(d)
   return { d.lnum, d.col, d.code, d.message, d.severity, d.source }
-end, hints.collect(src, "magic.c", { root = "/tmp" }))
+end, only_g9(hints.collect(src, "magic.c", { root = "/tmp" })))
 local HINT = vim.diagnostic.severity.HINT
 h.assert_equal(found, {
   { 17, 16, "C-G9", "C-G9 name this number?", HINT, "epitech.nvim" },
@@ -33,24 +38,25 @@ h.assert_equal(found, {
 }, "magic number hints (4096, 42, -5, 0x10, 2.5)")
 
 -- The allow list and the switches.
-h.assert_equal(#hints.collect(src, "magic.c", { root = "/tmp", options = config.merge({
+h.assert_equal(#only_g9(hints.collect(src, "magic.c", { root = "/tmp", options = config.merge({
   hints = { magic_numbers = { allow = { 0, 1, -1, 84, 4096, 42, -5, 16, 2.5 } } },
-}).hints }), 0, "allowed numbers")
-h.assert_equal(#hints.collect(src, "magic.c", { root = "/tmp", options = config.merge({
+}).hints })), 0, "allowed numbers")
+h.assert_equal(#only_g9(hints.collect(src, "magic.c", { root = "/tmp", options = config.merge({
   hints = { magic_numbers = false },
-}).hints }), 0, "magic_numbers = false")
+}).hints })), 0, "magic_numbers = false")
 
 -- The runner: buffer hints, Banana dedup and :EpitechHints.
 local buf = h.buffer("/tmp/epitech_magic.c", fixture)
 hints.refresh(buf)
-h.assert_equal(#vim.diagnostic.get(buf, { namespace = hints.ns }), 5, "hints on the buffer")
+h.assert_equal(#only_g9(vim.diagnostic.get(buf, { namespace = hints.ns })), 5, "hints on the buffer")
 vim.diagnostic.set(require("epitech.banana").ns, buf, {
   { lnum = 20, col = 0, message = "named by Banana", code = "C-G9", source = "Banana" },
 })
 hints.refresh(buf)
 h.assert_equal(vim.tbl_map(function(d)
   return d.lnum
-end, vim.diagnostic.get(buf, { namespace = hints.ns })), { 17, 21, 21, 24 }, "hint dropped where Banana says the same")
+end, only_g9(vim.diagnostic.get(buf, { namespace = hints.ns }))), { 17, 21, 21, 24 },
+  "hint dropped where Banana says the same")
 h.assert_equal(#hints.dedup({ { lnum = 20, code = "C-G9", user_data = { keep = true } } },
   { { lnum = 20, code = "C-G9" } }), 1, "explanations are kept")
 vim.diagnostic.reset(require("epitech.banana").ns, buf)
@@ -59,7 +65,7 @@ require("epitech").setup()
 vim.cmd("EpitechHints off")
 h.assert_equal(#vim.diagnostic.get(buf, { namespace = hints.ns }), 0, ":EpitechHints off clears them")
 vim.cmd("EpitechHints on")
-h.assert_equal(#vim.diagnostic.get(buf, { namespace = hints.ns }), 5, ":EpitechHints on brings them back")
+h.assert_equal(#only_g9(vim.diagnostic.get(buf, { namespace = hints.ns })), 5, ":EpitechHints on brings them back")
 vim.cmd("EpitechHints")
 h.assert_equal(hints.is_active(), false, ":EpitechHints toggles")
 vim.cmd("EpitechHints on")
@@ -69,7 +75,7 @@ vim.api.nvim_buf_set_lines(buf, 20, 21, false, { "    total = total + 7;" })
 vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf })
 assert(vim.wait(2000, function()
   local d = vim.diagnostic.get(buf, { namespace = hints.ns, lnum = 20 })[1]
-  return d and d.col == 20 and #vim.diagnostic.get(buf, { namespace = hints.ns }) == 5
+  return d and d.col == 20 and #only_g9(vim.diagnostic.get(buf, { namespace = hints.ns })) == 5
 end), "hints refreshed after an edit")
 
 -- §9.6 fix: extract into a macro in the project header.
