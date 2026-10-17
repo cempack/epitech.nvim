@@ -46,4 +46,80 @@ config.setup({ budget = { functions = false } })
 budget.update(buf)
 h.assert_equal(marks(buf, budget.ns), {}, "no meters when disabled")
 
+-- §9.4 file budget.
+config.setup()
+local function functions(count, static_count)
+  local lines = {}
+  for i = 1, count do
+    if i > 1 then
+      lines[#lines + 1] = ""
+    end
+    vim.list_extend(lines, {
+      (i <= static_count and "static " or "") .. "int get_value_" .. i .. "(void)", "{", "    return " .. i .. ";", "}",
+    })
+  end
+  return lines
+end
+local root, cleanup = h.temp_project({
+  ["src/parser.c"] = functions(10, 4),
+  ["src/small.c"] = functions(3, 1),
+  ["include/types.h"] = { "int get_value(void);" },
+  ["include/inline.h"] = { "static inline int get_one(void)", "{", "    return 1;", "}" },
+  ["src/100%.c"] = functions(1, 0),
+})
+
+local parser = h.buffer(root .. "/src/parser.c", vim.fn.readfile(root .. "/src/parser.c"))
+local win = vim.api.nvim_get_current_win()
+vim.g.statusline_winid = win
+h.assert_equal(budget.winbar(), "%#EpitechWinbar#src/parser.c   functions %#EpitechBudgetNear#10/10"
+  .. "%#EpitechWinbar# · non-static %#EpitechBudgetOver#6/5%*", "winbar at and past the limits")
+h.assert_equal(budget.file_text(parser), "functions 10/10 · non-static 6/5", "plain text")
+h.buffer(root .. "/src/small.c", vim.fn.readfile(root .. "/src/small.c"))
+h.assert_equal(budget.winbar(), "%#EpitechWinbar#src/small.c   functions %#EpitechWinbar#3/10"
+  .. "%#EpitechWinbar# · non-static %#EpitechWinbar#2/5%*", "winbar under the limits")
+h.buffer(root .. "/src/100%.c", vim.fn.readfile(root .. "/src/100%.c"))
+assert(budget.winbar():find("src/100%%.c", 1, true), "% in a path is escaped")
+
+-- Headers get a budget only when they define functions.
+local types = h.buffer(root .. "/include/types.h", vim.fn.readfile(root .. "/include/types.h"))
+h.assert_equal(budget.file_text(types), "", "header without functions")
+local inline = h.buffer(root .. "/include/inline.h", vim.fn.readfile(root .. "/include/inline.h"))
+h.assert_equal(budget.file_text(inline), "functions 1/10 · non-static 0/5", "header with a static inline function")
+
+-- The winbar is set on C windows, cleared on others, and never replaces a
+-- winbar the plugin didn't set.
+budget.setup(config.options)
+vim.api.nvim_set_current_buf(parser)
+budget.update_winbar(win)
+h.assert_equal(vim.wo[win].winbar, budget.WINBAR, "winbar set on a C window")
+vim.api.nvim_set_current_buf(types)
+h.assert_equal(vim.wo[win].winbar, "", "winbar cleared on a header without functions")
+local text = vim.api.nvim_create_buf(true, false)
+vim.bo[text].filetype = "markdown"
+vim.api.nvim_set_current_buf(parser)
+h.assert_equal(vim.wo[win].winbar, budget.WINBAR, "BufWinEnter sets it again")
+vim.api.nvim_set_current_buf(text)
+h.assert_equal(vim.wo[win].winbar, "", "winbar cleared on a non-C buffer")
+
+-- Another plugin replaces the winbar on the C buffer: it's left alone.
+vim.api.nvim_set_current_buf(parser)
+vim.api.nvim_set_option_value("winbar", "%f custom", { win = win, scope = "local" })
+vim.api.nvim_set_current_buf(text)
+vim.api.nvim_set_current_buf(parser)
+h.assert_equal(vim.wo[win].winbar, "%f custom", "a user's window winbar is kept")
+vim.api.nvim_set_option_value("winbar", "", { win = win, scope = "local" })
+vim.o.winbar = "%f global"
+vim.cmd("split")
+h.assert_equal(vim.wo.winbar, "%f global", "a user's global winbar is kept")
+vim.cmd("close")
+vim.o.winbar = ""
+
+-- With budget.file = "lualine" there's no winbar, only the component.
+budget.setup(config.setup({ budget = { file = "lualine" } }))
+vim.api.nvim_set_current_buf(text)
+vim.api.nvim_set_current_buf(parser)
+h.assert_equal(vim.wo[win].winbar, "", "no winbar in lualine mode")
+h.assert_equal(require("epitech").file_budget(), "functions 10/10 · non-static 6/5", "lualine component")
+cleanup()
+
 print("Epitech budget tests passed")

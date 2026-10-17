@@ -9,6 +9,12 @@ M.format_stdout = format.format_stdout
 M.insert_header = header.insert_header
 M.insert_guard = header.insert_guard
 
+-- The file budget ("functions 8/10 · non-static 5/5") for a lualine
+-- component; "" when the current buffer has none.
+function M.file_budget()
+  return require("epitech.budget").file_text()
+end
+
 function M.formatter(opts)
   opts = opts or {}
   local vim_config = opts.vim_config or vim.fn.expand("~/.vim/epitech.vim")

@@ -108,11 +108,33 @@ are the `EpitechBudgetOk`, `EpitechBudgetNear` and `EpitechBudgetOver`
 highlight groups (linked to `Comment`, `DiagnosticWarn` and `DiagnosticError`
 unless your colorscheme sets them).
 
+Each C file's winbar shows its file budget (C-O3):
+`src/parser.c   functions 8/10 · non-static 5/5`, each count in the warning
+color at its limit and the error color past it. Headers only get one when
+they define functions (`static inline`). The plugin only uses a winbar that's
+empty or its own, so another plugin's winbar is left alone. To show the
+budget in lualine instead, set `budget.file = "lualine"` and add a component:
+
+```lua
+{
+  "nvim-lualine/lualine.nvim",
+  opts = function(_, opts)
+    table.insert(opts.sections.lualine_c, {
+      function()
+        return require("epitech").file_budget()
+      end,
+    })
+  end,
+}
+```
+
 ```lua
 budget = {
   functions = true, -- the meter after each signature
+  file = "winbar", -- "winbar", "lualine" (component only) or false
   max_lines = 20, warn_lines = 17,
   max_args = 4,
+  max_functions = 10, max_non_static = 5,
 },
 ```
 
@@ -171,6 +193,8 @@ never in your repository: C-O1 forbids unnecessary files there.
   current one when `buf` is omitted, exactly as `<leader>cf` does.
 - `require("epitech").insert_header()` and `insert_guard()` are what
   `:EpitechHeader` and `:EpitechGuard` run, for your own mappings.
+- `require("epitech").file_budget()` returns the current file's budget as
+  text, for a statusline.
 - `require("epitech.rules").rules` lists the 42 rules of the coding style
   (code, title, severity, who checks it, a summary and examples);
   `require("epitech.rules").by_code["C-L1"]` finds one.

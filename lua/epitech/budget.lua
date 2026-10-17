@@ -1,5 +1,7 @@
--- Budget meters: lines and parameters per function (C-F4, C-F5).
+-- Budget meters: lines and parameters per function (C-F4, C-F5), and
+-- functions per file (C-O3).
 local config = require("epitech.config")
+local project = require("epitech.project")
 local ts = require("epitech.ts")
 
 local M = {}
@@ -58,6 +60,96 @@ local function update_functions(buf, options)
   end
 end
 
+local function is_header(buf)
+  return vim.api.nvim_buf_get_name(buf):match("%.h$") ~= nil
+end
+
+-- The number of functions defined in buf, and how many aren't static.
+function M.file_counts(buf)
+  local functions = ts.functions(buf)
+  local non_static = 0
+  for _, fn in ipairs(functions) do
+    if not fn.is_static then
+      non_static = non_static + 1
+    end
+  end
+  return #functions, non_static
+end
+
+-- Whether buf gets a file budget: C sources always, headers only when they
+-- define functions (static inline ones).
+local function has_file_budget(buf)
+  if vim.bo[buf].filetype ~= "c" or vim.bo[buf].buftype ~= "" then
+    return false
+  end
+  return not is_header(buf) or #ts.functions(buf) > 0
+end
+
+local function count_hl(count, limit, base)
+  if count > limit then
+    return "EpitechBudgetOver"
+  elseif count == limit then
+    return "EpitechBudgetNear"
+  end
+  return base
+end
+
+-- The file budget as plain text, "functions 8/10 · non-static 5/5", for a
+-- lualine component; "" when the buffer has none.
+function M.file_text(buf)
+  buf = (buf == nil or buf == 0) and vim.api.nvim_get_current_buf() or buf
+  if not has_file_budget(buf) then
+    return ""
+  end
+  local options = config.options.budget
+  local functions, non_static = M.file_counts(buf)
+  return ("functions %d/%d · non-static %d/%d"):format(functions, options.max_functions, non_static,
+    options.max_non_static)
+end
+
+-- The winbar of the window being drawn: "src/parser.c   functions 8/10 ·
+-- non-static 5/5", each count colored at and past its limit.
+function M.winbar()
+  local win = vim.g.statusline_winid or vim.api.nvim_get_current_win()
+  local buf = vim.api.nvim_win_get_buf(win)
+  if not has_file_budget(buf) then
+    return ""
+  end
+  return ts.cached(buf, "winbar", function()
+    local options = config.options.budget
+    local name = vim.api.nvim_buf_get_name(buf)
+    local root = project.root(buf)
+    local path = vim.startswith(name, root .. "/") and name:sub(#root + 2) or vim.fn.fnamemodify(name, ":~:.")
+    local functions, non_static = M.file_counts(buf)
+    return ("%%#EpitechWinbar#%s   functions %%#%s#%d/%d%%#EpitechWinbar# · non-static %%#%s#%d/%d%%*"):format(
+      (path:gsub("%%", "%%%%")),
+      count_hl(functions, options.max_functions, "EpitechWinbar"), functions, options.max_functions,
+      count_hl(non_static, options.max_non_static, "EpitechWinbar"), non_static, options.max_non_static)
+  end)
+end
+
+M.WINBAR = "%{%v:lua.require'epitech.budget'.winbar()%}"
+
+-- Shows the file budget in win's winbar, but only when the winbar is empty
+-- or the plugin set it: a winbar of the user's or another plugin's is never
+-- touched. Clears the plugin's winbar when the window shows another buffer.
+function M.update_winbar(win)
+  win = (win == nil or win == 0) and vim.api.nvim_get_current_win() or win
+  if not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_config(win).relative ~= "" then
+    return
+  end
+  local ours = vim.w[win].epitech_winbar == true and vim.wo[win].winbar == M.WINBAR
+  if config.options.budget.file == "winbar" and has_file_budget(vim.api.nvim_win_get_buf(win)) then
+    if ours or vim.wo[win].winbar == "" then
+      vim.api.nvim_set_option_value("winbar", M.WINBAR, { win = win, scope = "local" })
+      vim.w[win].epitech_winbar = true
+    end
+  elseif ours then
+    vim.api.nvim_set_option_value("winbar", "", { win = win, scope = "local" })
+    vim.w[win].epitech_winbar = false
+  end
+end
+
 -- Redraws the meters of buf now.
 function M.update(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
@@ -92,6 +184,14 @@ function M.setup(options)
         if vim.bo[args.buf].filetype == "c" then
           M.schedule(args.buf)
         end
+      end,
+    })
+  end
+  if options.budget.file == "winbar" then
+    vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter", "FileType" }, {
+      group = group,
+      callback = function()
+        M.update_winbar(0)
       end,
     })
   end
