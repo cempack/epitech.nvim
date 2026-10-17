@@ -255,6 +255,14 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   updated and read on the same line (undefined behaviour), an assignment in
   an `else if` or on the right of `&&`/`||`, and an assignment in a loop
   condition.
+- **Convert to switch** (C-C1): on the first `if` of a chain with more than
+  three branches, or whose `else if`s reach depth 3, when every condition
+  compares the same variable (or field) with distinct constants: numbers,
+  characters or UPPER_SNAKE macros, `x == K`, `K == x` or several of them
+  joined with `||` (several `case` labels). A final `else` becomes
+  `default:`, and each branch gets a `break;` unless it already ends in
+  `return`, `break`, `continue` or `exit(…)`. A `break` or `continue` in a
+  branch, or a declaration, means no conversion, with a hint saying why.
 
 Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
