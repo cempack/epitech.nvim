@@ -44,6 +44,7 @@ run scaffold
 run split
 run snippets
 run check
+run hooks
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.

@@ -134,6 +134,23 @@ function M.setup(opts)
     require("epitech.check").open()
   end, "Epitech Check Project")
 
+  command("EpitechHooks", function(args)
+    if args.args == "remove" then
+      require("epitech.hooks").remove()
+    else
+      require("epitech.hooks").install()
+    end
+  end, "Install the Epitech pre-push hook (or remove it)", {
+    nargs = "?",
+    complete = function()
+      return { "remove" }
+    end,
+  })
+  command("EpitechLazygit", function()
+    require("epitech.hooks").show_lazygit()
+  end, "Show a lazygit key for the Epitech check")
+  require("epitech.hooks").check_stale()
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)

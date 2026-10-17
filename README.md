@@ -243,6 +243,27 @@ needs git, and `epiclang` for the Banana part.
 check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
 ```
 
+### Push guard
+
+`:EpitechHooks` installs a git pre-push hook in the current repository. A
+`git push`, from the terminal or lazygit, then runs the project check and
+stops while a Fatal or Major is left:
+
+```
+epitech.nvim: 2 Major left, push stopped. Run :EpitechCheck to see them, or git push --no-verify to skip.
+```
+
+The hook lives in `.git/hooks`, which git never tracks. When the repository
+already has a pre-push hook, you choose to chain it (it runs first), replace
+it, or cancel. `:EpitechHooks remove` deletes the plugin's hook and puts a
+chained one back. The hook uses absolute paths to Neovim and the plugin; if
+the plugin moves, you're warned once to run `:EpitechHooks` again.
+
+`:EpitechLazygit` shows a lazygit custom command (key `B` in the files
+panel) that runs the check; paste it into lazygit's `config.yml`. It uses
+`output: terminal` (lazygit 0.51 and later) or `subprocess: true` for older
+versions. The plugin never edits lazygit's config.
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one
