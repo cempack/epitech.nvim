@@ -85,6 +85,21 @@ can be turned off with `feature = false`. Lists replace the default list
 instead of extending it. Unknown options are ignored with a warning, and an
 option of the wrong type stops `setup()` with an error naming it.
 
+## Project detection
+
+Features that work on the whole project find its root from the current file:
+the nearest directory with `.git`, else with a `Makefile`, else the file's
+own directory. The project name is `NAME` from the Makefile, else the project
+line of an Epitech header, else the directory name. Include flags for
+`epiclang` come from `compile_commands.json` (at the root or in `build/`)
+when there is one, else `-I include` and `-I .`. When the project's main
+header isn't obvious (`include/<name>.h`, or the only header in `include/`),
+you're asked once.
+
+What the plugin remembers about a project is stored in
+`~/.local/share/nvim/epitech.nvim/projects.json` (Neovim's data directory),
+never in your repository: C-O1 forbids unnecessary files there.
+
 ## Lua API
 
 - `require("epitech").format_buffer(buf)` formats a buffer in place, the
