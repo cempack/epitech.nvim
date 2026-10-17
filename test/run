@@ -31,6 +31,7 @@ run budget
 run magic
 run static
 run types
+run naming
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.

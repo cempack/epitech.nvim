@@ -12,7 +12,7 @@ local M = {}
 M.ns = vim.api.nvim_create_namespace("epitech.hints")
 
 -- Hint modules under hints/, by id. Each is { id, enabled(options), run }.
-M.modules = { "magic", "static", "types" }
+M.modules = { "magic", "static", "types", "naming" }
 
 local active = true
 

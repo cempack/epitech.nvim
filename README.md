@@ -123,6 +123,15 @@ them back, and `:EpitechHints` toggles.
   (no automatic fix: changing a type ripples into comparisons and format
   strings).
 
+- **Naming** (C-F2, C-O4, C-V1): a function name without a verb
+  (`C-F2 no verb → get_vowels_number?`, with a suggestion when the function
+  returns something), a vague file name such as `utils.c`, a typedef name
+  that doesn't end in `_t`, and macros, enum values or global constants that
+  aren't UPPER_SNAKE_CASE. A name counts as having a verb when one of its
+  words (a leading `my` aside) is a verb or starts with one, like `putstr`;
+  the lib/my classics (`my_strlen`, `my_getnbr`…) and `main` are left alone.
+  `verbs` and `vague_files` replace the built-in lists.
+
 ```lua
 hints = {
   enabled = true,
@@ -130,6 +139,7 @@ hints = {
   magic_numbers = { enabled = true, allow = { 0, 1, -1, 84 } },
   static = true,
   types = true,
+  naming = { enabled = true, verbs = nil, vague_files = nil }, -- nil: built-in lists
 },
 ```
 
