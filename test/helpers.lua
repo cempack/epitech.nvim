@@ -89,4 +89,63 @@ function M.buffer(name, lines)
   return buf
 end
 
+-- An LSP range covering whole rows, first_row to last_row (0-based).
+function M.rows(first_row, last_row)
+  return { start = { line = first_row, character = 0 }, ["end"] = { line = last_row or first_row, character = 0 } }
+end
+
+-- Asks the epitech language server for the code actions on range in buf,
+-- through the real LSP path. Returns the actions and the client.
+function M.code_actions(buf, range)
+  local client_id = assert(require("epitech.lsp").start(buf), "epitech language server didn't start")
+  local client = assert(vim.lsp.get_client_by_id(client_id))
+  local response = client:request_sync("textDocument/codeAction", {
+    textDocument = { uri = vim.uri_from_bufnr(buf) },
+    range = range or M.rows(0, vim.api.nvim_buf_line_count(buf) - 1),
+    context = { diagnostics = {} },
+  }, 1000, buf)
+  assert(response and not response.err, "codeAction failed: " .. vim.inspect(response))
+  return response.result or {}, client
+end
+
+-- Applies an action's edit the way vim.lsp.buf.code_action() does.
+function M.apply_action(action, client)
+  assert(action.edit, "action has no edit: " .. action.title)
+  vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding)
+end
+
+-- The actions in a list whose data.rule is rule.
+function M.actions_for(actions, rule)
+  return vim.tbl_filter(function(action)
+    return action.data and action.data.rule == rule
+  end, actions)
+end
+
+-- Checks a fix on test/fixtures/fixes/<fix>/<case>.before.c: the action
+-- titled `title` offered on `row` turns it into <case>.after.c, no action for
+-- `rule` is offered on the result (idempotence), and format_buffer() leaves
+-- the result unchanged.
+function M.check_fix(fix, case, row, title, rule)
+  local dir = vim.env.EPITECH_NVIM_DIR .. "/test/fixtures/fixes/" .. fix .. "/"
+  local label = fix .. "/" .. case
+  local buf = M.buffer("/tmp/epitech_fix_" .. fix .. "_" .. case .. ".c", vim.fn.readfile(dir .. case .. ".before.c"))
+  local actions, client = M.code_actions(buf, M.rows(row))
+  local chosen
+  for _, action in ipairs(actions) do
+    if action.title == title then
+      chosen = action
+    end
+  end
+  assert(chosen, label .. ": no action titled " .. title .. " in " .. vim.inspect(vim.tbl_map(function(action)
+    return action.title
+  end, actions)))
+  M.apply_action(chosen, client)
+  local expected = vim.fn.readfile(dir .. case .. ".after.c")
+  M.assert_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), expected, label .. ": result")
+  M.assert_equal(M.actions_for((M.code_actions(buf)), rule), {}, label .. ": idempotent")
+  require("epitech").format_buffer(buf)
+  M.assert_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), expected, label .. ": formatter leaves it unchanged")
+  return buf
+end
+
 return M

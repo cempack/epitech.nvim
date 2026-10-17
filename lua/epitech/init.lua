@@ -57,6 +57,8 @@ function M.setup(opts)
   keymap(options.header.keymap, M.insert_header, "Epitech Header")
   command("EpitechGuard", M.insert_guard, "Add an include guard based on the header filename")
   keymap(options.guard.keymap, M.insert_guard, "Epitech Include Guard")
+
+  require("epitech.lsp").setup(options)
 end
 
 return M

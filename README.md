@@ -63,6 +63,15 @@ Requirements:
 - C buffers use four-space indentation with spaces, as the Epitech Vim config
   does.
 
+### Fix menu
+
+The plugin runs a small language server inside Neovim, called `epitech`, for
+C files, headers and Makefiles. It offers fixes for coding style problems as
+code actions, so they appear in `<leader>ca` (`vim.lsp.buf.code_action()`)
+next to clangd's. It's why `:checkhealth vim.lsp` and `:LspInfo` list a
+client named `epitech`. A fix is only offered when its rewrite keeps the
+program's meaning. Turn the menu off with `fixes = { enabled = false }`.
+
 Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
 `int f(void)`, are left to `epiclang`.
@@ -76,6 +85,7 @@ default, so `setup()` alone is enough. The options that exist today:
 require("epitech").setup({
   header = { keymap = "<leader>cH" }, -- :EpitechHeader; false for no mapping
   guard = { keymap = "<leader>cG" }, -- :EpitechGuard; false for no mapping
+  fixes = { enabled = true }, -- the epitech language server's code actions
 })
 ```
 

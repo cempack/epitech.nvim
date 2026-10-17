@@ -20,6 +20,7 @@ nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/config.lua"
 nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/project.lua"
 nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/rules.lua"
 nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/ts.lua"
+nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/lsp.lua"
 nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/header-filetypes.lua"
 
 # The formatter tests check the output with Banana, so they need epiclang and
