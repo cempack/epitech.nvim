@@ -34,6 +34,7 @@ run types
 run naming
 run makefile
 run void
+run decl
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.

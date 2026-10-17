@@ -234,6 +234,15 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   `.c` and `.h` file of the project and reports
   `3 functions fixed in 2 files`; open buffers are edited and left for you
   to save, and a buffer with unsaved changes is skipped.
+- **Move declarations to the top** (C-L5, C-L6): on a declaration after the
+  first statement, or one declaring several variables, rewrites the whole
+  function: one variable per declaration, all at the top in their original
+  order, then the blank line. A moved declaration's initializer stays where
+  it was as an assignment (`int x = f();` leaves `x = f();`). `for` loop
+  initializers stay. When moving would change the program (an array or
+  struct initializer, a `const` or `static` variable with an initializer, a
+  variable-length array, the same name declared twice), a hint says why and
+  there's no action.
 
 Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
