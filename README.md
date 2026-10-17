@@ -48,6 +48,8 @@ Requirements:
   stays inactive without it
 - [`mbake`](https://pypi.org/project/mbake/) for Makefiles, if you use the
   `bake` line above
+- `epiclang` (Epitech's Banana checker) for live diagnostics; everything else
+  works without it
 
 ## What it does
 
@@ -62,6 +64,29 @@ Requirements:
   after the file (`my_macro_abs.h` becomes `MY_MACRO_ABS_H_`).
 - C buffers use four-space indentation with spaces, as the Epitech Vim config
   does.
+
+### Live Banana diagnostics
+
+When you open or save a C file or header, the plugin runs `epiclang` on it in
+the background and shows what Banana reports as ordinary diagnostics: signs,
+virtual text, `]d`, Trouble. Each one has `source = "Banana"` and the rule as
+its code (`C-L1`). Fatal and Major problems are errors, Minor ones warnings,
+Info ones information; a Fatal message starts with `FATAL:` because a fatal
+means the project isn't graded. Only the file's own problems are shown, not
+those of the headers it includes. Include flags come from
+`compile_commands.json` when there is one, else `-I include` and `-I .`.
+
+This needs `epiclang`; without it you get one notice per session and nothing
+else.
+
+```lua
+diagnostics = {
+  enabled = true,
+  cmd = "epiclang",
+  args = { "-x", "c", "-fsyntax-only" }, -- include flags are added per project
+  events = { "BufWritePost", "BufReadPost" },
+},
+```
 
 ### Fix menu
 
@@ -86,6 +111,7 @@ require("epitech").setup({
   header = { keymap = "<leader>cH" }, -- :EpitechHeader; false for no mapping
   guard = { keymap = "<leader>cG" }, -- :EpitechGuard; false for no mapping
   fixes = { enabled = true }, -- the epitech language server's code actions
+  diagnostics = { enabled = true }, -- live Banana diagnostics, see below
 })
 ```
 
@@ -129,8 +155,9 @@ never in your repository: C-O1 forbids unnecessary files there.
 test/run
 ```
 
-The formatter tests check their output with `epiclang`, so they are skipped
-when it or `~/.vim/epitech.vim` is missing.
+Tests that need the real `epiclang` (the formatter tests, which also need
+`~/.vim/epitech.vim`, and a Banana diagnostics test) are skipped when it is
+missing; the rest of the suite uses a stand-in.
 
 The suite runs with a temporary `XDG_DATA_HOME`, so it never touches the
 plugin's state in your own data directory. Test scripts share the helpers in

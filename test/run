@@ -14,20 +14,32 @@ while IFS= read -r file; do
     luac -p "$file"
 done < <(find "$EPITECH_NVIM_DIR/lua" "$EPITECH_NVIM_DIR/after" "$EPITECH_NVIM_DIR/test" -type f -name '*.lua' -print)
 
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/helpers-check.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/nvim.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/config.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/project.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/rules.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/ts.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/lsp.lua"
-nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/header-filetypes.lua"
+run() {
+    nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/$1.lua"
+}
+
+run helpers-check
+run nvim
+run config
+run project
+run rules
+run ts
+run lsp
+run banana
+run header-filetypes
+
+# These need the real epiclang, which isn't publicly available.
+if command -v epiclang >/dev/null 2>&1; then
+    run banana-real
+else
+    printf '%s\n' 'Skipping Banana tests: epiclang is missing'
+fi
 
 # The formatter tests check the output with Banana, so they need epiclang and
 # the Epitech Vim config the formatter runs.
 if command -v epiclang >/dev/null 2>&1 && [ -f "${HOME}/.vim/epitech.vim" ]; then
-    nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/format-guard.lua"
-    nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/format-style.lua"
+    run format-guard
+    run format-style
 else
     printf '%s\n' 'Skipping formatter tests: epiclang or ~/.vim/epitech.vim is missing'
 fi

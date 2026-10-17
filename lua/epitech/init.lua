@@ -59,6 +59,7 @@ function M.setup(opts)
   keymap(options.guard.keymap, M.insert_guard, "Epitech Include Guard")
 
   require("epitech.lsp").setup(options)
+  require("epitech.banana").setup(options)
 end
 
 return M
