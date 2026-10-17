@@ -113,12 +113,23 @@ them back, and `:EpitechHints` toggles.
   file uses the function before its definition; otherwise the program
   wouldn't compile, so there's no action. Needs git.
 
+- **Const and precise types** (C-A1, C-A2): a pointer parameter whose data
+  the function never modifies gets `C-A1 str is never modified →
+  char const *str`, with the action **Make str const**, which rewrites the
+  definition and the prototypes. The check is cautious: a write through the
+  pointer, passing it to a function that doesn't take `const` there,
+  returning it, or any use it can't classify means no hint. An `int` set from
+  `strlen`, `my_strlen` or `sizeof` gets `C-A2 holds a length → size_t?`
+  (no automatic fix: changing a type ripples into comparisons and format
+  strings).
+
 ```lua
 hints = {
   enabled = true,
   severity = vim.diagnostic.severity.HINT,
   magic_numbers = { enabled = true, allow = { 0, 1, -1, 84 } },
   static = true,
+  types = true,
 },
 ```
 

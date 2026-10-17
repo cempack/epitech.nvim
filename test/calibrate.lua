@@ -148,6 +148,22 @@ for _, label in ipairs(labels) do
   report("C-C1 " .. label, has(check("check_depth.c", lines), "C-C1"), meter_says(lines))
 end
 
+-- 7. Grader-only rules: Banana should print nothing for C-G9, C-A1, C-A2
+-- and C-A4, or the hints would duplicate it.
+local grader = check("grader_only.c", {
+  "#include <string.h>",
+  "",
+  "int count_chars(char *str)",
+  "{",
+  "    int len = strlen(str);",
+  "",
+  "    return len * 4096;",
+  "}",
+})
+for _, code in ipairs({ "C-G9", "C-A1", "C-A2", "C-A4" }) do
+  report(code .. " is grader-only", has(grader, code), false)
+end
+
 cleanup()
 if #failures > 0 then
   error("Banana disagrees with the plugin on:\n  " .. table.concat(failures, "\n  "))
