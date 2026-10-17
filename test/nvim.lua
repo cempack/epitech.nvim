@@ -4,12 +4,7 @@ vim.opt.runtimepath:append(plugin .. "/after")
 package.path = plugin .. "/lua/?.lua;" .. plugin .. "/lua/?/init.lua;" .. package.path
 
 local epitech = require("epitech")
-
-local function assert_equal(actual, expected, label)
-  if not vim.deep_equal(actual, expected) then
-    error(("%s\nexpected: %s\nactual:   %s"):format(label, vim.inspect(expected), vim.inspect(actual)))
-  end
-end
+local assert_equal = dofile(plugin .. "/test/helpers.lua").assert_equal
 
 local expected_header = {
   "/*",

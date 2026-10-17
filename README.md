@@ -82,3 +82,10 @@ test/run
 
 The formatter tests check their output with `epiclang`, so they are skipped
 when it or `~/.vim/epitech.vim` is missing.
+
+The suite runs with a temporary `XDG_DATA_HOME`, so it never touches the
+plugin's state in your own data directory. Test scripts share the helpers in
+`test/helpers.lua`: `assert_equal`, `temp_project` (a temp git repository
+built from a table of files), `with_fake_epiclang` (a stand-in `epiclang` that
+prints canned Banana output, so nothing but calibration needs the real tool)
+and `buffer`.

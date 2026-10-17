@@ -4,10 +4,17 @@ set -euo pipefail
 EPITECH_NVIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 export EPITECH_NVIM_DIR
 
+# Per-project state lives in stdpath("data"): keep the tests away from the
+# real one.
+XDG_DATA_HOME="$(mktemp -d)"
+export XDG_DATA_HOME
+trap 'rm -rf "$XDG_DATA_HOME"' EXIT
+
 while IFS= read -r file; do
     luac -p "$file"
 done < <(find "$EPITECH_NVIM_DIR/lua" "$EPITECH_NVIM_DIR/after" "$EPITECH_NVIM_DIR/test" -type f -name '*.lua' -print)
 
+nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/helpers-check.lua"
 nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/nvim.lua"
 nvim --clean --headless -u NONE -l "$EPITECH_NVIM_DIR/test/header-filetypes.lua"
 
