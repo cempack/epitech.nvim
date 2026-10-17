@@ -6,7 +6,7 @@
 local M = {}
 
 -- Fix modules under lua/epitech/fixes/, by id.
-M.modules = { "macro", "static", "const", "makefile" }
+M.modules = { "macro", "static", "const", "makefile", "void" }
 
 local registered, modules_loaded = {}, false
 
@@ -112,6 +112,61 @@ function M.command_action(title, rule, command, arguments, kind)
     command = { title = title, command = command, arguments = arguments },
     data = { rule = rule },
   }
+end
+
+-- The rule codes :EpitechFixAll can fix across a project.
+function M.fix_all_codes()
+  local codes = {}
+  for _, fix in ipairs(M.list()) do
+    if fix.fix_all then
+      vim.list_extend(codes, fix.rules)
+    end
+  end
+  return codes
+end
+
+-- :EpitechFixAll <code>: applies a fix to every tracked .c and .h file of
+-- the project at root. Loaded buffers are edited (and left for the user to
+-- save), other files are written; a buffer with unsaved changes is skipped.
+-- Returns the summary it notifies.
+function M.fix_all(code, root)
+  local fix
+  for _, candidate in ipairs(M.list()) do
+    if candidate.fix_all and vim.list_contains(candidate.rules, code) then
+      fix = candidate
+    end
+  end
+  if not fix then
+    local message = ("No project-wide fix for %s (available: %s)"):format(code, table.concat(M.fix_all_codes(), ", "))
+    vim.notify(message, vim.log.levels.WARN, { title = "Epitech" })
+    return message
+  end
+  local util = require("epitech.util")
+  local fixed, files, skipped = 0, 0, {}
+  for _, file in ipairs(require("epitech.project").files(root, { "*.c", "*.h" }) or {}) do
+    local path = root .. "/" .. file
+    local loaded = util.loaded_buffer(path)
+    if loaded and vim.bo[loaded].modified then
+      skipped[#skipped + 1] = file
+    else
+      util.edit_file(path, function(buf)
+        local edits = fix.fix_all(buf)
+        if #edits > 0 then
+          M.apply(buf, edits)
+          fixed = fixed + #edits
+          files = files + 1
+        end
+      end)
+    end
+  end
+  local noun = fix.fix_all_noun or { "fix", "fixes" }
+  local message = ("%d %s fixed in %d %s"):format(fixed, fixed == 1 and noun[1] or noun[2], files,
+    files == 1 and "file" or "files")
+  if #skipped > 0 then
+    message = message .. "; skipped (unsaved changes): " .. table.concat(skipped, ", ")
+  end
+  vim.notify(message, vim.log.levels.INFO, { title = "Epitech" })
+  return message
 end
 
 -- Applies text edits to buf right away, outside the LSP round trip.

@@ -228,6 +228,13 @@ next to clangd's. It's why `:checkhealth vim.lsp` and `:LspInfo` list a
 client named `epitech`. A fix is only offered when its rewrite keeps the
 program's meaning. Turn the menu off with `fixes = { enabled = false }`.
 
+- **Add void** (C-F6): `int print_help()` becomes `int print_help(void)`, for
+  definitions, prototypes, `main()` and pointer-returning functions (function
+  pointers are left alone). `:EpitechFixAll C-F6` does it in every tracked
+  `.c` and `.h` file of the project and reports
+  `3 functions fixed in 2 files`; open buffers are edited and left for you
+  to save, and a buffer with unsaved changes is skipped.
+
 Formatting only changes layout. Rules about structure or meaning, such as
 function length, parameter count, naming, or `int f()` instead of
 `int f(void)`, are left to `epiclang`.

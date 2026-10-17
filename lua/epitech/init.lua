@@ -88,6 +88,15 @@ function M.setup(opts)
     end,
   })
 
+  command("EpitechFixAll", function(args)
+    require("epitech.fixes").fix_all(args.args:upper(), require("epitech.project").root(0))
+  end, "Apply an Epitech fix to the whole project", {
+    nargs = 1,
+    complete = function()
+      return require("epitech.fixes").fix_all_codes()
+    end,
+  })
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)

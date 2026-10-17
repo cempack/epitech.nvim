@@ -6,6 +6,9 @@ local h = dofile(plugin .. "/test/helpers.lua")
 local fixes = require("epitech.fixes")
 local ts = require("epitech.ts")
 
+-- Only the stand-in fix below: this tests the server, not the real fixes.
+fixes.modules = {}
+
 -- A stand-in fix: C-F6 on every empty parameter list, like §8.3's skeleton.
 local commands_run = {}
 fixes.register({
