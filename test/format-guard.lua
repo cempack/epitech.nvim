@@ -32,12 +32,28 @@ local ok, err = pcall(function()
         "#endif",
       },
     },
+    {
+      name = "pragma once",
+      lines = {
+        "/*",
+        "** EPITECH PROJECT, " .. os.date("%Y"),
+        "** Day 08",
+        "** File description:",
+        "** Absolute-value macro",
+        "*/",
+        "",
+        "#pragma once",
+        "",
+        "#define ABS(value) (((value) < 0) ? -(value) : (value))",
+      },
+    },
   }
 
   for _, case in ipairs(cases) do
     vim.api.nvim_buf_set_lines(0, 0, -1, false, case.lines)
     epitech.insert_guard()
     local input = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n") .. "\n"
+    assert(not input:find("#pragma", 1, true), case.name .. ": #pragma once left in place")
     local formatted = vim.system(command, { stdin = input, text = true }):wait()
     assert(formatted.code == 0, case.name .. ": " .. formatted.stderr)
     local twice = vim.system(command, { stdin = formatted.stdout, text = true }):wait()

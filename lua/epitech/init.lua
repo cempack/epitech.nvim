@@ -440,21 +440,40 @@ function M.insert_header()
   end)
 end
 
+-- Only #ifndef/#define/#endif counts as a guard (C-H2). #pragma once is one
+-- of the language extensions the coding style lists as unsupported by Banana,
+-- so it is not a guard here: insert_guard() replaces it with a real one.
 local function has_guard(lines)
   for i = 1, math.min(#lines, 30) do
-    if lines[i]:match("^%s*#pragma%s+once%s*$") then
-      return true
-    end
-    local name = lines[i]:match("^%s*#ifndef%s+([%a_][%w_]*)%s*$")
+    local name = lines[i]:match("^%s*#%s*ifndef%s+([%a_][%w_]*)%s*$")
     if name then
       for j = i + 1, math.min(i + 5, #lines) do
-        if lines[j]:match("^%s*#define%s+" .. name .. "%s*$") then
+        if lines[j]:match("^%s*#%s*define%s+" .. name .. "%s*$") then
           return true
         end
       end
     end
   end
   return false
+end
+
+-- Row (1-based) of a #pragma once line near the top of the file, if any.
+local function find_pragma_once(lines)
+  for i = 1, math.min(#lines, 30) do
+    if lines[i]:match("^%s*#%s*pragma%s+once%s*$") then
+      return i
+    end
+  end
+end
+
+-- Deletes the #pragma once line, plus the blank line after it when that
+-- would otherwise leave two blank lines in a row (or a leading blank line).
+local function remove_pragma_once(buf, lines, row)
+  local last = row
+  if lines[row + 1] == "" and (row == 1 or lines[row - 1] == "") then
+    last = row + 1
+  end
+  vim.api.nvim_buf_set_lines(buf, row - 1, last, false, {})
 end
 
 function M.insert_guard()
@@ -470,8 +489,17 @@ function M.insert_guard()
   end
 
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local pragma = find_pragma_once(lines)
+  if pragma then
+    remove_pragma_once(buf, lines, pragma)
+    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  end
   if has_guard(lines) then
-    vim.notify("This file already has an include guard", vim.log.levels.INFO, { title = "Epitech" })
+    if pragma then
+      vim.notify("Removed #pragma once: the file already has an include guard", vim.log.levels.INFO, { title = "Epitech" })
+    else
+      vim.notify("This file already has an include guard", vim.log.levels.INFO, { title = "Epitech" })
+    end
     return
   end
 
@@ -503,6 +531,9 @@ function M.insert_guard()
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, wrapped)
   indent_preprocessor(buf)
   vim.api.nvim_win_set_cursor(0, { cursor_line, 0 })
+  if pragma then
+    vim.notify("Replaced #pragma once with an include guard", vim.log.levels.INFO, { title = "Epitech" })
+  end
 end
 
 function M.formatter(opts)

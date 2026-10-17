@@ -97,6 +97,68 @@ local existing_lines = vim.api.nvim_buf_get_lines(existing_buf, 0, -1, false)
 epitech.insert_guard()
 assert_equal(vim.api.nvim_buf_get_lines(existing_buf, 0, -1, false), existing_lines, "existing custom guard unchanged")
 
+-- #pragma once is a language extension Banana does not support: it is not a
+-- guard, and :EpitechGuard replaces it with #ifndef/#define/#endif.
+local pragma_buf = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_set_current_buf(pragma_buf)
+vim.api.nvim_buf_set_name(pragma_buf, "/tmp/pragma_guard.h")
+vim.api.nvim_buf_set_lines(pragma_buf, 0, -1, false, vim.list_extend(vim.deepcopy(expected_header), {
+  "",
+  "#pragma once",
+  "",
+  "int add(int a, int b);",
+}))
+notice = nil
+epitech.insert_guard()
+assert_equal(vim.api.nvim_buf_get_lines(pragma_buf, 0, -1, false), vim.list_extend(vim.deepcopy(expected_header), {
+  "",
+  "#ifndef PRAGMA_GUARD_H_",
+  "    #define PRAGMA_GUARD_H_",
+  "",
+  "int add(int a, int b);",
+  "",
+  "#endif",
+}), "#pragma once after the header becomes an include guard")
+assert_equal(notice, "Replaced #pragma once with an include guard", "pragma replacement notice")
+
+local bare_pragma_buf = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_set_current_buf(bare_pragma_buf)
+vim.api.nvim_buf_set_name(bare_pragma_buf, "/tmp/bare_pragma.h")
+vim.api.nvim_buf_set_lines(bare_pragma_buf, 0, -1, false, { "#pragma once", "", "int sub(int a, int b);" })
+epitech.insert_guard()
+assert_equal(vim.api.nvim_buf_get_lines(bare_pragma_buf, 0, -1, false), {
+  "#ifndef BARE_PRAGMA_H_",
+  "    #define BARE_PRAGMA_H_",
+  "",
+  "int sub(int a, int b);",
+  "",
+  "#endif",
+}, "#pragma once on the first line becomes an include guard")
+
+local both_buf = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_set_current_buf(both_buf)
+vim.api.nvim_buf_set_name(both_buf, "/tmp/both_guards.h")
+vim.api.nvim_buf_set_lines(both_buf, 0, -1, false, {
+  "#ifndef BOTH_GUARDS_H_",
+  "    #define BOTH_GUARDS_H_",
+  "    #pragma once",
+  "",
+  "int mul(int a, int b);",
+  "",
+  "#endif",
+})
+notice = nil
+epitech.insert_guard()
+assert_equal(vim.api.nvim_buf_get_lines(both_buf, 0, -1, false), {
+  "#ifndef BOTH_GUARDS_H_",
+  "    #define BOTH_GUARDS_H_",
+  "",
+  "int mul(int a, int b);",
+  "",
+  "#endif",
+}, "#pragma once dropped when a guard already exists")
+assert_equal(notice, "Removed #pragma once: the file already has an include guard", "pragma removal notice")
+
 local vim_config = vim.fn.tempname()
 vim.fn.writefile({
   "set tabstop=4",
