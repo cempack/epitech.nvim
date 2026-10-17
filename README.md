@@ -98,6 +98,24 @@ the cursor wins, else you choose; with none, you pick from the list.
 `:EpitechExplain C-F6` explains a given rule, and `:EpitechRules` lists all
 42 rules. Change or disable the key with `explain = { keymap = … }`.
 
+### Budget meters
+
+After each function's signature, a meter shows how much of its budget it
+uses: `13/20 lines · 2/4 args` (C-F4, C-F5). It's dim below 17 lines, in the
+warning color from 17 to 20 and in the error color past 20; the parameter
+count turns red past 4, and a variadic shows as `2/4 args + …`. The colors
+are the `EpitechBudgetOk`, `EpitechBudgetNear` and `EpitechBudgetOver`
+highlight groups (linked to `Comment`, `DiagnosticWarn` and `DiagnosticError`
+unless your colorscheme sets them).
+
+```lua
+budget = {
+  functions = true, -- the meter after each signature
+  max_lines = 20, warn_lines = 17,
+  max_args = 4,
+},
+```
+
 ### Fix menu
 
 The plugin runs a small language server inside Neovim, called `epitech`, for

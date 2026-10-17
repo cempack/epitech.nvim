@@ -27,11 +27,13 @@ run ts
 run lsp
 run banana
 run explain
+run budget
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.
 if command -v epiclang >/dev/null 2>&1; then
     run banana-real
+    run calibrate
 else
     printf '%s\n' 'Skipping Banana tests: epiclang is missing'
 fi

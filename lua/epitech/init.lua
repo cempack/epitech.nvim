@@ -75,6 +75,7 @@ function M.setup(opts)
 
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
+  require("epitech.budget").setup(options)
 end
 
 return M
