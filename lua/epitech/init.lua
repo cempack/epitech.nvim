@@ -108,6 +108,10 @@ function M.setup(opts)
     require("epitech.scaffold").new_file(args.args)
   end, "Create a source file with its Epitech header", { nargs = 1, complete = "file" })
 
+  command("EpitechMoveTo", function(args)
+    require("epitech.split").move_to(args.args, args.line1 - 1, args.line2 - 1)
+  end, "Move the selected functions to another file", { nargs = 1, range = true, complete = "file" })
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)

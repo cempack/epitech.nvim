@@ -205,6 +205,17 @@ the Makefile is left alone and you're told what to add.
 scaffold = { cflags = "-Wall -Wextra" },
 ```
 
+### Splitting a file
+
+Select whole functions in a `.c` file (visual mode), then
+`:'<,'>EpitechMoveTo src/print_long.c` (C-O3: at most 10 functions per file).
+The functions move to that file, new or existing, with their comments and
+the static helpers only they use. A static helper both files would need has
+to become non-static, which counts against the 5 non-static functions per
+file, so you're asked first. A new file gets its Epitech header (you give
+the description) and the source's `#include` lines. Then the file is added
+to `SRC` and `:EpitechSyncHeader` updates the project header.
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one

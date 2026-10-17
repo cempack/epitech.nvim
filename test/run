@@ -41,6 +41,7 @@ run struct_ptr
 run header_sync
 run move_header
 run scaffold
+run split
 run header-filetypes
 
 # These need the real epiclang, which isn't publicly available.

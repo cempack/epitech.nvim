@@ -37,13 +37,15 @@ function M.prototype(fn, source)
   return collapse(table.concat(parts, " ")) .. ";"
 end
 
--- { file, prototypes = { { name, text } } } for each tracked .c file under
--- dirs, sorted by path; static functions and main left out.
+-- { file, prototypes = { { name, text } } } for each .c file under dirs
+-- (tracked, or new and not ignored), sorted by path; static functions and
+-- main left out.
 function M.collect(root, dirs)
   local pathspecs = vim.tbl_map(function(dir)
     return dir:gsub("/$", "") .. "/*.c"
   end, dirs)
-  local files = project.files(root, pathspecs) or {}
+  -- New files (from :EpitechNewFile or :EpitechMoveTo) count before git add.
+  local files = project.files(root, pathspecs, { untracked = true }) or {}
   table.sort(files)
   local result, seen = {}, {}
   for _, file in ipairs(files) do

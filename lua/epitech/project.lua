@@ -26,9 +26,14 @@ function M.root(source)
 end
 
 -- Tracked files under root matching the git pathspecs (e.g. "*.c"), relative
--- to root, or nil when root isn't inside a git repository.
-function M.files(root, pathspecs)
-  local cmd = { "git", "ls-files", "--" }
+-- to root, or nil when root isn't inside a git repository. With
+-- opts.untracked, files not added yet (but not ignored) count too.
+function M.files(root, pathspecs, opts)
+  local cmd = { "git", "ls-files" }
+  if opts and opts.untracked then
+    vim.list_extend(cmd, { "--cached", "--others", "--exclude-standard" })
+  end
+  cmd[#cmd + 1] = "--"
   vim.list_extend(cmd, pathspecs or {})
   local result = vim.system(cmd, { cwd = root, text = true }):wait()
   if result.code ~= 0 then
