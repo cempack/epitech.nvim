@@ -969,6 +969,7 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 - **Caches for the hint runner.** `project.files` caches tracked-file lists until `.git/index` changes (never with `untracked`) and sorts its result; `ts.header_prototypes` parses each header text once. Hints run on every pause in typing, so these keep `git` and header parsing out of the loop. Commit `perf: cache file lists and header parses for hints`.
 - **README reorganized** once every feature was in: intro, install and requirements (git, epiclang and the optional clangd, Trouble, blink.cmp/LuaSnip), a commands table, one section per feature in the order a user meets them, the full `setup()` defaults, highlight groups and namespaces. Commit `docs: reorganize the README around the finished features`.
 - **Neovim 0.12 fixes** (§6.6): C-O1 patterns matched without `vim.glob`, and `project.files` returns nil for a missing root. Found by the first full run on Elliot's machine (Neovim 0.12.5, clang-format 22.1.8). Commit `fix: keep the project check working on Neovim 0.12`.
+- **Type snippets checked in a header.** `test/snippets-real.lua` expanded `tdef` and `tenum` in a `.c` file, where Banana rightly reports C-H1 (typedefs belong in headers); they're now checked in a `.h` with an include guard. Commit `test: check the type snippets against Banana in a header`.
 
 ---
 
