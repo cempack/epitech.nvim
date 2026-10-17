@@ -88,6 +88,66 @@ local variadic = check("variadic.c", {
 })
 report("C-F5 four parameters and ...", has(variadic, "C-F5"), nil)
 
+-- 3. and 4. C-C1: nesting depth (switch, do while, a plain else block) and
+-- branch counts, compared with the depth meter's verdict.
+local budget = require("epitech.budget")
+local function meter_says(lines)
+  local src = table.concat(lines, "\n")
+  local fn = ts.collect_functions(ts.parse_string(src), src)[1]
+  for _, entry in ipairs(budget.depths(fn.body)) do
+    if entry.depth >= config.options.budget.max_depth
+      or (entry.branches or 0) > config.options.budget.max_branches then
+      return true
+    end
+  end
+  return false
+end
+local function wrap(body)
+  return vim.list_extend(vim.list_extend({ "int check_depth(int a)", "{" }, body), { "    return a;", "}" })
+end
+local nesting = {
+  ["while { for { if } }"] = {
+    "    while (a > 0) {", "        for (int i = 0; i < a; i++) {", "            if (i == 2) {",
+    "                a--;", "            }", "        }", "        a--;", "    }",
+  },
+  ["if / else if / else if"] = {
+    "    if (a == 1) {", "        a = 2;", "    } else if (a == 2) {", "        a = 3;",
+    "    } else if (a == 3) {", "        a = 4;", "    }",
+  },
+  ["if {} else if { while {} }"] = {
+    "    if (a == 1) {", "        a = 2;", "    } else if (a == 2) {", "        while (a > 0) {",
+    "            a--;", "        }", "    }",
+  },
+  ["if / else if / else"] = {
+    "    if (a == 1) {", "        a = 2;", "    } else if (a == 2) {", "        a = 3;", "    } else {",
+    "        a = 4;", "    }",
+  },
+  ["while { if }"] = { "    while (a > 0) {", "        if (a == 2) {", "            a = 0;", "        }", "    }" },
+  ["while { switch { case: if } }"] = {
+    "    while (a > 0) {", "        switch (a) {", "            case 1:", "                if (a == 1) {",
+    "                    a = 0;", "                }", "                break;", "            default:",
+    "                a--;", "                break;", "        }", "    }",
+  },
+  ["do { for { if } } while"] = {
+    "    do {", "        for (int i = 0; i < a; i++) {", "            if (i == 2) {", "                a--;",
+    "            }", "        }", "        a--;", "    } while (a > 0);",
+  },
+  ["if {} else { if { while } }"] = {
+    "    if (a == 1) {", "        a = 2;", "    } else {", "        if (a == 2) {", "            while (a > 0) {",
+    "                a--;", "            }", "        }", "    }",
+  },
+  ["4 branches: if / else if / else if / else"] = {
+    "    if (a == 1) {", "        a = 2;", "    } else if (a == 2) {", "        a = 3;", "    } else if (a == 3) {",
+    "        a = 4;", "    } else {", "        a = 5;", "    }",
+  },
+}
+local labels = vim.tbl_keys(nesting)
+table.sort(labels)
+for _, label in ipairs(labels) do
+  local lines = wrap(nesting[label])
+  report("C-C1 " .. label, has(check("check_depth.c", lines), "C-C1"), meter_says(lines))
+end
+
 cleanup()
 if #failures > 0 then
   error("Banana disagrees with the plugin on:\n  " .. table.concat(failures, "\n  "))

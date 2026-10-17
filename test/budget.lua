@@ -46,6 +46,53 @@ config.setup({ budget = { functions = false } })
 budget.update(buf)
 h.assert_equal(marks(buf, budget.ns), {}, "no meters when disabled")
 
+-- §9.5 depth meter, on every row of CLAUDE.md's table, a 4-branch chain and
+-- a switch (counted as a level until calibrated).
+config.setup()
+local depth = h.buffer("/tmp/epitech_budget_depth.c", vim.fn.readfile(plugin .. "/test/fixtures/budget/depth.c"))
+budget.update(depth)
+local function texts(chunks)
+  return table.concat(vim.tbl_map(function(chunk)
+    return chunk[1] .. "|" .. chunk[2]
+  end, chunks), " ")
+end
+local depth_marks = {}
+for _, mark in ipairs(marks(depth, budget.depth_ns)) do
+  depth_marks[#depth_marks + 1] = { mark[1] + 1, texts(mark[2]) }
+end
+h.assert_equal(depth_marks, {
+  { 4, "depth 2|EpitechBudgetNear" },
+  { 5, "depth 3 ✗ C-C1|EpitechBudgetOver" },
+  { 18, "depth 2 (else + if)|EpitechBudgetNear" },
+  { 20, "depth 3 (else + if) ✗ C-C1|EpitechBudgetOver" },
+  { 30, "depth 2 (else + if)|EpitechBudgetNear" },
+  { 31, "depth 3 ✗ C-C1|EpitechBudgetOver" },
+  { 42, "depth 2 (else + if)|EpitechBudgetNear" },
+  { 52, "depth 2|EpitechBudgetNear" },
+  { 62, "4 branches ✗ C-C1|EpitechBudgetOver" },
+  { 64, "depth 2 (else + if)|EpitechBudgetNear" },
+  { 66, "depth 3 (else + if) ✗ C-C1|EpitechBudgetOver" },
+  { 76, "depth 2|EpitechBudgetNear" },
+  { 78, "depth 3 ✗ C-C1|EpitechBudgetOver" },
+}, "depth labels (1-based rows)")
+
+-- Two labels on one row are joined.
+local same_row = h.buffer("/tmp/epitech_budget_same_row.c", {
+  "int f(int a)", "{", "    while (a) { while (a) { if (a) { if (a) { return 1; } else if (a) { return 2; }"
+    .. " else if (a) { return 3; } else { return 4; } } } }", "    return 0;", "}",
+})
+budget.update(same_row)
+h.assert_equal(texts(marks(same_row, budget.depth_ns)[1][2]), table.concat({
+  "depth 2|EpitechBudgetNear", " · |EpitechBudgetOk", "depth 3 ✗ C-C1|EpitechBudgetOver",
+  " · |EpitechBudgetOk", "depth 4 ✗ C-C1|EpitechBudgetOver", " · |EpitechBudgetOk",
+  "4 branches ✗ C-C1|EpitechBudgetOver", " · |EpitechBudgetOk", "depth 5 (else + if) ✗ C-C1|EpitechBudgetOver",
+  " · |EpitechBudgetOk", "depth 6 (else + if) ✗ C-C1|EpitechBudgetOver",
+}, " "), "labels on one row")
+
+config.setup({ budget = { depth = false } })
+budget.update(depth)
+h.assert_equal(marks(depth, budget.depth_ns), {}, "no depth labels when disabled")
+
 -- §9.4 file budget.
 config.setup()
 local function functions(count, static_count)

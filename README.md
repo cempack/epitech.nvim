@@ -128,13 +128,22 @@ budget in lualine instead, set `budget.file = "lualine"` and add a component:
 }
 ```
 
+Control statements nested two levels deep or more get a depth label at the
+end of their line (C-C1): `depth 2`, `depth 2 (else + if)` on an `else if`
+(which counts as an `if` inside the `else`), and `depth 3 ✗ C-C1` in the
+error color. The first `if` of a chain with more than three branches gets
+`4 branches ✗ C-C1`. A `switch` counts as a level.
+
 ```lua
 budget = {
   functions = true, -- the meter after each signature
   file = "winbar", -- "winbar", "lualine" (component only) or false
+  depth = true, -- the depth labels
   max_lines = 20, warn_lines = 17,
   max_args = 4,
   max_functions = 10, max_non_static = 5,
+  max_depth = 3, show_depth_from = 2,
+  max_branches = 3,
 },
 ```
 

@@ -1,5 +1,5 @@
--- Budget meters: lines and parameters per function (C-F4, C-F5), and
--- functions per file (C-O3).
+-- Budget meters: lines and parameters per function (C-F4, C-F5), functions
+-- per file (C-O3) and nesting depth (C-C1).
 local config = require("epitech.config")
 local project = require("epitech.project")
 local ts = require("epitech.ts")
@@ -7,6 +7,7 @@ local ts = require("epitech.ts")
 local M = {}
 
 M.ns = vim.api.nvim_create_namespace("epitech.budget")
+M.depth_ns = vim.api.nvim_create_namespace("epitech.depth")
 
 -- Defaults link to standard groups, so colorschemes can override them.
 function M.highlights()
@@ -54,6 +55,114 @@ local function update_functions(buf, options)
   for _, fn in ipairs(ts.functions(buf)) do
     vim.api.nvim_buf_set_extmark(buf, M.ns, fn.signature_row, 0, {
       virt_text = M.function_chunks(fn, options),
+      virt_text_pos = "eol",
+      hl_mode = "combine",
+    })
+  end
+end
+
+local CONTROL = {
+  if_statement = true,
+  while_statement = true,
+  for_statement = true,
+  do_statement = true,
+  -- calibrate: whether Banana counts a switch as a level; counted until
+  -- measured.
+  switch_statement = true,
+}
+
+-- The branches of the if chain starting at if_node: 1, plus one per else
+-- if, plus one for a final else.
+function M.branches(if_node)
+  local count, node = 1, if_node
+  while true do
+    local alternative = node:field("alternative")[1]
+    if not alternative then
+      return count
+    end
+    count = count + 1
+    local inner = alternative:named_child(0)
+    if not inner or inner:type() ~= "if_statement" then
+      return count
+    end
+    node = inner
+  end
+end
+
+-- The control statements of a function body with their depth (C-C1, as the
+-- PDF unfolds its examples): one level below the nearest enclosing control
+-- statement, the body's top level being 0. An else if is inside its if's
+-- else_clause, so it lands one level below that if. Each entry is
+-- { node, depth, else_if, branches } (branches on the first if of a chain).
+function M.depths(body)
+  local result = {}
+  local function walk(node, depth)
+    for child in node:iter_children() do
+      local type = child:type()
+      if CONTROL[type] then
+        local entry = {
+          node = child,
+          depth = depth + 1,
+          else_if = type == "if_statement" and child:parent():type() == "else_clause",
+        }
+        if type == "if_statement" and not entry.else_if then
+          entry.branches = M.branches(child)
+        end
+        result[#result + 1] = entry
+        walk(child, depth + 1)
+      elseif child:named_child_count() > 0 then
+        walk(child, depth)
+      end
+    end
+  end
+  walk(body, 0)
+  return result
+end
+
+-- The virtual text at the end of a control statement's line.
+function M.depth_chunks(entry, options)
+  local chunks = {}
+  if entry.depth >= options.show_depth_from then
+    local text = "depth " .. entry.depth .. (entry.else_if and " (else + if)" or "")
+    if entry.depth >= options.max_depth then
+      chunks[#chunks + 1] = { text .. " ✗ C-C1", "EpitechBudgetOver" }
+    else
+      chunks[#chunks + 1] = { text, entry.depth == options.max_depth - 1 and "EpitechBudgetNear" or "EpitechBudgetOk" }
+    end
+  end
+  if entry.branches and entry.branches > options.max_branches then
+    if #chunks > 0 then
+      chunks[#chunks + 1] = { " · ", "EpitechBudgetOk" }
+    end
+    chunks[#chunks + 1] = { entry.branches .. " branches ✗ C-C1", "EpitechBudgetOver" }
+  end
+  return chunks
+end
+
+local function update_depth(buf, options)
+  vim.api.nvim_buf_clear_namespace(buf, M.depth_ns, 0, -1)
+  if not options.depth then
+    return
+  end
+  local rows, order = {}, {}
+  for _, fn in ipairs(ts.functions(buf)) do
+    for _, entry in ipairs(M.depths(fn.body)) do
+      local chunks = M.depth_chunks(entry, options)
+      if #chunks > 0 then
+        local row = entry.node:range()
+        if rows[row] then
+          table.insert(rows[row], { " · ", "EpitechBudgetOk" })
+          vim.list_extend(rows[row], chunks)
+        else
+          rows[row] = chunks
+          order[#order + 1] = row
+        end
+      end
+    end
+  end
+  for _, row in ipairs(order) do
+    vim.api.nvim_buf_set_extmark(buf, M.depth_ns, row, 0, {
+      virt_text = rows[row],
       virt_text_pos = "eol",
       hl_mode = "combine",
     })
@@ -156,6 +265,7 @@ function M.update(buf)
     return
   end
   update_functions(buf, config.options.budget)
+  update_depth(buf, config.options.budget)
 end
 
 local timers = {}
@@ -177,7 +287,7 @@ function M.setup(options)
   M.highlights()
   local group = vim.api.nvim_create_augroup("epitech.budget", { clear = true })
   vim.api.nvim_create_autocmd("ColorScheme", { group = group, callback = M.highlights })
-  if options.budget.functions then
+  if options.budget.functions or options.budget.depth then
     vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged", "TextChangedI", "InsertLeave" }, {
       group = group,
       callback = function(args)
