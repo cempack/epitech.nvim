@@ -101,6 +101,13 @@ function M.setup(opts)
     require("epitech.header_sync").run(require("epitech.project").root(0))
   end, "Update the project header's prototypes")
 
+  command("EpitechNew", function(args)
+    require("epitech.scaffold").new(args.args, nil, args.bang)
+  end, "Create an Epitech project in the current directory", { nargs = "?", bang = true })
+  command("EpitechNewFile", function(args)
+    require("epitech.scaffold").new_file(args.args)
+  end, "Create a source file with its Epitech header", { nargs = 1, complete = "file" })
+
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.budget").setup(options)

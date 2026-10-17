@@ -185,6 +185,26 @@ then formatted so long prototypes wrap at 80 columns.
 header_sync = { group_by_file = true }, -- false: no /* file */ lines
 ```
 
+### New projects and files
+
+`:EpitechNew [name]` creates a project in the current directory (named after
+it by default): a `Makefile` with `all`, `clean`, `fclean`, `re` and a
+Criterion `tests_run`, `include/<name>.h` with its guard and an empty
+prototypes block, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
+build products. Everything has its Epitech header and passes the formatter
+and the Makefile checks. It refuses when a `Makefile` exists;
+`:EpitechNew!` overwrites.
+
+`:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
+(asking for the description), adds `SRC += src/parse_args.c` to the Makefile
+(`TESTS_SRC` for files under `tests/`) and opens it. A `.h` gets an include
+guard instead. When `SRC` is built with `$(wildcard …)` or doesn't exist,
+the Makefile is left alone and you're told what to add.
+
+```lua
+scaffold = { cflags = "-Wall -Wextra" },
+```
+
 ### Rule explainer
 
 `<leader>cE` (or `:EpitechExplain`) on a line with a Banana diagnostic or one
