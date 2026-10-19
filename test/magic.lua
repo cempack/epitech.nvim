@@ -37,6 +37,28 @@ h.assert_equal(found, {
   { 24, 19, "C-G9", "C-G9 name this number?", HINT, "epitech.nvim" },
 }, "magic number hints (4096, 42, -5, 0x10, 2.5)")
 
+-- Obvious numbers: argument counts and positions, 2 and 10 as a factor,
+-- divisor or modulus, a const variable's value. Not: 10 as a dividend, 3 as
+-- a divisor, 2 compared with something else.
+local obvious_src = table.concat({
+  "int main(int ac, char **av)",
+  "{",
+  "    const int limit = 4;",
+  "    int nb = 0;",
+  "",
+  "    if (ac != 2 || argc < 3 || av[2] == 0)",
+  "        return 84;",
+  "    nb = nb * 10 + nb % 10 + nb / 2 + 2 * nb;",
+  "    nb *= 10;",
+  "    nb = 10 / nb + nb / 3;",
+  "    return nb == 2 ? limit : 5;",
+  "}",
+}, "\n")
+h.assert_equal(vim.tbl_map(function(literal)
+  return { literal.row, literal.text }
+end, magic.literals(require("epitech.ts").parse_string(obvious_src), obvious_src, { 0, 1, -1, 84 })),
+  { { 9, "10" }, { 9, "3" }, { 10, "2" }, { 10, "5" } }, "obvious numbers aren't flagged")
+
 -- The allow list and the switches.
 h.assert_equal(#only_g9(hints.collect(src, "magic.c", { root = "/tmp", options = config.merge({
   hints = { magic_numbers = { allow = { 0, 1, -1, 84, 4096, 42, -5, 16, 2.5 } } },

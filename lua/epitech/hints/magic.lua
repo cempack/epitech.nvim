@@ -33,10 +33,47 @@ local function inside_preprocessor(node, stop)
   return false
 end
 
+local COMPARISONS = { ["=="] = true, ["!="] = true, ["<"] = true, [">"] = true, ["<="] = true, [">="] = true }
+local ARGUMENTS = { ac = true, argc = true, av = true, argv = true }
+local FACTORS = { [2] = true, [10] = true }
+
+-- Numbers every program writes that a grader reads as they are: argument
+-- counts and positions (ac != 2, av[1]), 2 and 10 as a factor, divisor or
+-- modulus (halving, parity, decimal digits: nb % 10), and the value of a
+-- const variable, which names it already.
+local function obvious(node, value, source)
+  local child, parent = node, node:parent()
+  if parent:type() == "unary_expression" then
+    child, parent = parent, parent:parent()
+  end
+  local type = parent:type()
+  if type == "binary_expression" or type == "assignment_expression" then
+    local op = ts.text(parent:child(1), source)
+    local left, right = parent:field("left")[1], parent:field("right")[1]
+    local other = left:id() == child:id() and right or left
+    if COMPARISONS[op] and other:type() == "identifier" and ARGUMENTS[ts.text(other, source)] then
+      return true
+    end
+    local is_right = right:id() == child:id()
+    return FACTORS[value] == true and (op == "*" or op == "*=" or (is_right and vim.list_contains({ "/", "%", "/=",
+      "%=" }, op)))
+  elseif type == "subscript_expression" then
+    local argument = parent:field("argument")[1]
+    return argument:id() ~= child:id() and argument:type() == "identifier" and ARGUMENTS[ts.text(argument, source)]
+  elseif type == "init_declarator" and parent:field("value")[1]:id() == child:id() then
+    for qualifier in parent:parent():iter_children() do
+      if qualifier:type() == "type_qualifier" and ts.text(qualifier, source) == "const" then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 -- The number literals of the function bodies under tree whose value isn't
--- in allow: { node, text, value, row, col, end_col }. A literal under a
--- unary minus counts as negative (-1 is allowed), but only the literal
--- itself is reported.
+-- in allow and that aren't obvious (above): { node, text, value, row, col,
+-- end_col }. A literal under a unary minus counts as negative (-1 is
+-- allowed), but only the literal itself is reported.
 function M.literals(tree, source, allow)
   local allowed = {}
   for _, value in ipairs(allow) do
@@ -52,7 +89,8 @@ function M.literals(tree, source, allow)
         if value and parent:type() == "unary_expression" and ts.text(parent:child(0), source) == "-" then
           value = -value
         end
-        if value and not allowed[value] and not inside_preprocessor(child, body) then
+        if value and not allowed[value] and not inside_preprocessor(child, body)
+          and not obvious(child, value, source) then
           local row, col, _, end_col = child:range()
           result[#result + 1] = { node = child, text = text, value = value, row = row, col = col, end_col = end_col }
         end
