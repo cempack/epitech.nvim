@@ -1,5 +1,5 @@
--- C-A4 (grader), C-O3: non-static functions that no other file uses could
--- be static. Whether another .c file mentions a name comes from `git grep`,
+-- C-A4 (grader), C-O3: non-static functions that no other file uses, and
+-- this one does, could be static. Whether another .c file mentions a name comes from `git grep`,
 -- run asynchronously on save; until then there's no hint.
 local ts = require("epitech.ts")
 local util = require("epitech.util")
@@ -15,6 +15,45 @@ function M.candidates(tree, source)
   return vim.tbl_filter(function(fn)
     return not fn.is_static and fn.name ~= "main"
   end, ts.collect_functions(tree, source))
+end
+
+-- The names of fns that this source uses outside their own definition (a
+-- call, or a function pointer). A function nothing calls isn't "only used
+-- here": made static, it would get an unused-function warning instead.
+function M.used_here(tree, source, fns)
+  local wanted = {}
+  for _, fn in ipairs(fns) do
+    wanted[fn.name] = fn.node
+  end
+  local result = {}
+  local function walk(node)
+    for child in node:iter_children() do
+      local type = child:type()
+      if type == "identifier" then
+        local name = ts.text(child, source)
+        local definition = wanted[name]
+        if definition and not result[name] and child:parent():type() ~= "function_declarator"
+          and not vim.treesitter.node_contains(definition, { child:range() }) then
+          result[name] = true
+        end
+      elseif child:named_child_count() > 0 then
+        walk(child)
+      end
+    end
+  end
+  walk(tree)
+  return result
+end
+
+-- The candidates no other file uses and this one does: those get the hint.
+function M.local_only(tree, source, used)
+  local candidates = vim.tbl_filter(function(fn)
+    return not used[fn.name]
+  end, M.candidates(tree, source))
+  local here = M.used_here(tree, source, candidates)
+  return vim.tbl_filter(function(fn)
+    return here[fn.name]
+  end, candidates)
 end
 
 local function grep_command(names)
@@ -102,19 +141,17 @@ function M.run(src, path, ctx)
     return {}
   end
   local result = {}
-  for _, fn in ipairs(M.candidates(ctx.tree, src)) do
-    if not used[fn.name] then
-      local name = fn.declarator:field("declarator")[1]
-      local row, col, _, end_col = name:range()
-      result[#result + 1] = {
-        lnum = row,
-        col = col,
-        end_lnum = row,
-        end_col = end_col,
-        message = "C-A4 only used in this file",
-        code = "C-A4",
-      }
-    end
+  for _, fn in ipairs(M.local_only(ctx.tree, src, used)) do
+    local name = fn.declarator:field("declarator")[1]
+    local row, col, _, end_col = name:range()
+    result[#result + 1] = {
+      lnum = row,
+      col = col,
+      end_lnum = row,
+      end_col = end_col,
+      message = "C-A4 only used in this file",
+      code = "C-A4",
+    }
   end
   return result
 end

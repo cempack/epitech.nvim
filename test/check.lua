@@ -10,12 +10,17 @@ vim.notify = function() end
 local function c_file(name, value)
   return { "int " .. name .. "(void)", "{", "    return " .. value .. ";", "}" }
 end
+-- A function and another one calling it, so it's only used in its file.
+local function used_file(name, value)
+  return vim.list_extend(c_file(name, value), { "", "int use_" .. name .. "(void)", "{",
+    "    return " .. name .. "();", "}" })
+end
 local root, cleanup = h.temp_project({
   ["Makefile"] = { "##", "## EPITECH PROJECT, 2026", "## demo", "## File description:", "## Makefile", "##", "",
     "all:" },
   ["src/a.c"] = c_file("main", 0),
-  ["src/b.c"] = c_file("get_value", 4096),
-  ["src/Parser.c"] = c_file("get_two", 2),
+  ["src/b.c"] = used_file("get_value", 4096),
+  ["src/Parser.c"] = used_file("get_two", 2),
   ["include/my.h"] = { "#ifndef MY_H_", "    #define MY_H_", "int get_value(void);", "#endif" },
   ["main.o"] = { "binary" },
   ["x.cpp"] = { "int x;" },

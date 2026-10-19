@@ -70,8 +70,8 @@ function M.actions(buf, range)
   local root = project.root(buf)
   local headers
   local actions = {}
-  for _, fn in ipairs(static.candidates(tree, buf)) do
-    if not used[fn.name] and fixes.touches(fn.declarator, range) then
+  for _, fn in ipairs(static.local_only(tree, buf, used)) do
+    if fixes.touches(fn.declarator, range) then
       local start_row, start_col = fn.node:range()
       local edits = { { range = fixes.position_range(start_row, start_col), newText = "static " } }
       for _, proto in ipairs(ts.prototypes(buf)) do

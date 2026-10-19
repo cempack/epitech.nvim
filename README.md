@@ -199,8 +199,11 @@ them back, and `:EpitechHints` toggles.
   guard (C-H1), and the file gets the `#include` it needs.
 
 - **Could be static** (C-A4, C-O3): a non-static function, other than
-  `main`, that no other `.c` file of the project mentions gets
-  `C-A4 only used in this file`. The project is searched with `git grep`
+  `main`, that no other `.c` file of the project mentions, and that its own
+  file calls or stores somewhere else than in itself, gets
+  `C-A4 only used in this file`. A function nothing uses gets no hint:
+  made static, it would only trade the hint for an unused-function
+  warning. The project is searched with `git grep`
   when you save. **Add static** makes it static (and its prototypes in the
   file too). When a header declares it, the action is **Add static and
   remove the prototype from include/x.h**, offered only when nothing in the

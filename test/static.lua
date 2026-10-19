@@ -78,6 +78,33 @@ h.assert_equal(found, {
   { 12, 4, "C-A4 only used in this file" },
   { 17, 4, "C-A4 only used in this file" },
 }, "hints on helper, late_helper and local_only (not shared, not main)")
+
+-- Only functions this file uses: one nothing calls would get an unused
+-- function warning once static, and calling itself isn't a use.
+local unused_src = table.concat({
+  "int unused(void)",
+  "{",
+  "    return 0;",
+  "}",
+  "",
+  "int power(int nb, int p)",
+  "{",
+  "    return p == 0 ? 1 : nb * power(nb, p - 1);",
+  "}",
+  "",
+  "int print_a(void);",
+  "",
+  "int print_a(void)",
+  "{",
+  "    return 1;",
+  "}",
+  "",
+  "int (*const PRINTERS[])(void) = {print_a};",
+}, "\n")
+h.assert_equal(vim.tbl_map(function(d)
+  return d.lnum
+end, static.run(unused_src, "x.c", { tree = require("epitech.ts").parse_string(unused_src), static_used = {} })),
+  { 12 }, "unused and recursion-only functions get no hint, one in a table does")
 h.assert_equal(static.run("int f(void)\n{\n}", "x.h", { tree = require("epitech.ts").parse_string("int f(void)\n{\n}"),
   static_used = {} }), {}, "headers get no C-A4 hint")
 
