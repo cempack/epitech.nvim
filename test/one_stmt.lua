@@ -16,6 +16,29 @@ h.check_fix("one_stmt", "and", 2, "Turn the && into an if (C-L1)", "C-L1")
 h.check_fix("one_stmt", "or", 2, "Turn the || into an if (C-L1)", "C-L1")
 h.check_fix("one_stmt", "or_expression", 2, "Turn the || into an if (C-L1)", "C-L1")
 
+-- A brace-less body of a loop, an if, an else or a do gets braces, else the
+-- statements after the first would run once, after it.
+h.check_fix("one_stmt", "loop_body", 3, "Move dest++; src++; to its own line (C-L1)", "C-L1")
+h.check_fix("one_stmt", "if_body", 3, "Split the chained assignment (C-L1)", "C-L1")
+h.check_fix("one_stmt", "else_body", 5, "Move j++; to its own line (C-L1)", "C-L1")
+h.check_fix("one_stmt", "do_body", 5, "Move j++; to its own line (C-L1)", "C-L1")
+h.check_fix("one_stmt", "if_assign_body", 5, "Move the assignment out of the condition (C-L1)", "C-L1")
+-- An assignment keeps its parentheses in the new if, which then gets the
+-- assignment action.
+local and_dir = plugin .. "/test/fixtures/fixes/one_stmt/"
+local and_buf = h.buffer("/tmp/epitech_one_stmt_and_assign.c", vim.fn.readfile(and_dir .. "and_assign.before.c"))
+local and_actions, and_client = h.code_actions(and_buf, h.rows(2))
+h.apply_action(h.actions_for(and_actions, "C-L1")[1], and_client)
+h.assert_equal(vim.api.nvim_buf_get_lines(and_buf, 0, -1, false), vim.fn.readfile(and_dir .. "and_assign.after.c"),
+  "(a = b) && f()")
+h.assert_equal(vim.tbl_map(function(action)
+  return action.title
+end, h.actions_for((h.code_actions(and_buf)), "C-L1")), { "Move the assignment out of the condition (C-L1)" },
+  "(a = b) && f(): only the assignment is left")
+require("epitech").format_buffer(and_buf)
+h.assert_equal(vim.api.nvim_buf_get_lines(and_buf, 0, -1, false), vim.fn.readfile(and_dir .. "and_assign.after.c"),
+  "(a = b) && f(): formatter")
+
 -- Refusals: a hint, and no action.
 local function refused(body)
   local lines = vim.list_extend({ "int f(char *s, char const *t, int i, int c)", "{" }, body)

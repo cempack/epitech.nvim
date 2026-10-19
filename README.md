@@ -290,7 +290,9 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   assignment out of the condition** (`if ((fd = open(…)) == -1)` gives
   `fd = open(…);` then `if (fd == -1)`), and **Turn the && into an if**
   (`a && f();` gives `if (a) { f(); }`, and `a || f();` gives
-  `if (!a) { … }`). A hint explains the cases without a fix: a variable
+  `if (!a) { … }`). When the statement is the body of a loop, `if`,
+  `else` or `do` written without braces, the new lines get braces, so they
+  all stay in that body. A hint explains the cases without a fix: a variable
   updated and read on the same line (undefined behaviour), an assignment in
   an `else if` or on the right of `&&`/`||`, and an assignment in a loop
   condition.

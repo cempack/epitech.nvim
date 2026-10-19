@@ -81,8 +81,43 @@ local function rewrite(src, outer, replacements)
   return text
 end
 
-local function replace_statement(statement, lines, indent)
-  return { range = fixes.range(statement), newText = table.concat(lines, "\n" .. indent) }
+-- Control statements whose body can be a single statement without braces.
+local BODY_PARENTS = { if_statement = true, else_clause = true, while_statement = true, for_statement = true,
+  do_statement = true }
+
+-- The edit replacing statement with lines. In a block, they take its place.
+-- As the brace-less body of an if, else or loop, they would leave that
+-- body: they get braces (the house style anyway), from the end of the
+-- header to the else or do's while that follows. nil when a comment sits in
+-- the way or the statement is a label's.
+local function replace_statement(statement, lines, src, src_lines)
+  local parent = statement:parent()
+  local type = parent and parent:type()
+  if type == "compound_statement" or type == "case_statement" then
+    local indent = line_indent(src_lines, statement:range())
+    return { range = fixes.range(statement), newText = table.concat(lines, "\n" .. indent) }
+  elseif not BODY_PARENTS[type] then
+    return nil
+  end
+  local before = statement:prev_sibling()
+  local after = (type == "if_statement" or type == "do_statement") and statement:next_sibling() or nil
+  local _, _, before_end = before:end_()
+  local _, _, stop = statement:end_()
+  if src:sub(before_end + 1, select(3, statement:start())):match("%S")
+    or (after and src:sub(stop + 1, select(3, after:start())):match("%S")) then
+    return nil
+  end
+  local outer = line_indent(src_lines, parent:range())
+  local inner = outer .. "    "
+  local end_row, end_col = statement:end_()
+  if after then
+    end_row, end_col = after:start()
+  end
+  local start_row, start_col = before:end_()
+  return {
+    range = fixes.position_range(start_row, start_col, end_row, end_col),
+    newText = " {\n" .. inner .. table.concat(lines, "\n" .. inner) .. "\n" .. outer .. "}" .. (after and " " or ""),
+  }
 end
 
 -- a = b = c = v;
@@ -116,10 +151,8 @@ local function chained(statement, src, src_lines)
       lines[#lines + 1] = ts.text(targets[i], src) .. " = " .. from .. ";"
     end
   end
-  return {
-    title = "Split the chained assignment (C-L1)",
-    edits = { replace_statement(statement, lines, line_indent(src_lines, statement:range())) },
-  }
+  local edit = replace_statement(statement, lines, src, src_lines)
+  return edit and { title = "Split the chained assignment (C-L1)", edits = { edit } }
 end
 
 -- str[i++] = x;
@@ -177,10 +210,8 @@ local function increments(statement, src, src_lines)
   local moved = vim.list_extend(vim.deepcopy(before), after)
   local lines = vim.list_extend(vim.deepcopy(before), { rewrite(src, statement, replacements) })
   vim.list_extend(lines, after)
-  return {
-    title = "Move " .. table.concat(moved, " ") .. " to its own line (C-L1)",
-    edits = { replace_statement(statement, lines, line_indent(src_lines, statement:range())) },
-  }
+  local edit = replace_statement(statement, lines, src, src_lines)
+  return edit and { title = "Move " .. table.concat(moved, " ") .. " to its own line (C-L1)", edits = { edit } }
 end
 
 -- if ((x = f()) != NULL)
@@ -223,14 +254,9 @@ local function if_assignment(statement, src, src_lines)
     end
     replacements[#replacements + 1] = { node, ts.text(left, src) }
   end
-  local indent = line_indent(src_lines, row)
-  return {
-    title = "Move the assignment out of the condition (C-L1)",
-    edits = {
-      { range = fixes.position_range(row, 0), newText = indent .. table.concat(before, "\n" .. indent) .. "\n" },
-      { range = fixes.range(condition), newText = rewrite(src, condition, replacements) },
-    },
-  }
+  before[#before + 1] = rewrite(src, statement, replacements)
+  local edit = replace_statement(statement, before, src, src_lines)
+  return edit and { title = "Move the assignment out of the condition (C-L1)", edits = { edit } }
 end
 
 local LOOPS = { while_statement = true, do_statement = true, for_statement = true }
@@ -273,19 +299,22 @@ local function logical(statement, src, src_lines)
   end
   local left, right = expression:field("left")[1], expression:field("right")[1]
   local condition = ts.text(left, src):gsub("%s*\n%s*", " ")
-  if op == "&&" and left:type() == "parenthesized_expression" then
+  -- if ((a = b)): an assignment keeps its parentheses, as compilers ask.
+  if op == "&&" and left:type() == "parenthesized_expression"
+    and left:named_child(0):type() ~= "assignment_expression" then
     condition = ts.text(left:named_child(0), src):gsub("%s*\n%s*", " ")
   elseif op == "||" then
     condition = SIMPLE[left:type()] and "!" .. condition or "!(" .. condition .. ")"
   end
+  -- One if statement replaces one statement: no braces needed around it.
   local indent = line_indent(src_lines, statement:range())
   return {
     title = ("Turn the %s into an if (C-L1)"):format(op),
-    edits = { replace_statement(statement, {
+    edits = { { range = fixes.range(statement), newText = table.concat({
       "if (" .. condition .. ") {",
       "    " .. ts.text(right, src):gsub("%s*\n%s*", " ") .. ";",
       "}",
-    }, indent) },
+    }, "\n" .. indent) } },
   }
 end
 
