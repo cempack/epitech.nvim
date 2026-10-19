@@ -69,10 +69,14 @@ local function const_argument(call, arg, source, lookup)
   return lookup(fname, index) == true
 end
 
+-- The stdarg macros modify the va_list they're given.
+local VA_MACROS = { va_arg = true, va_start = true, va_end = true, va_copy = true }
+
 -- What happens to pointed-to data designated by node (*p, p[i], p->f):
--- "write", "unclear" or "read". `field` is set when the data is a struct
--- member, which might be an array that decays into a non-const pointer.
-local function access(node, source, lookup, field)
+-- "write", "unclear" or "read". `decays` is set when the data might be an
+-- array (a struct member, a va_list…): used as a value, it then becomes a
+-- pointer to the caller's data instead of a copy.
+local function access(node, source, lookup, decays)
   while true do
     local parent, child = up(node)
     local type = parent and parent:type()
@@ -80,22 +84,25 @@ local function access(node, source, lookup, field)
       if same(parent:field("left")[1], child) then
         return "write"
       end
-      return field and "unclear" or "read"
+      return decays and "unclear" or "read"
     elseif type == "update_expression" then
       return "write"
     elseif type == "pointer_expression" and operator(parent, source) == "&" then
       return "unclear"
     elseif (type == "field_expression" or type == "subscript_expression") and same(parent:field("argument")[1], child) then
-      field = field or type == "field_expression"
+      decays = decays or type == "field_expression"
       node = parent
     elseif type == "pointer_expression" then
       node = parent
     elseif type == "argument_list" then
-      if not field then
+      local fn = parent:parent():field("function")[1]
+      if fn and VA_MACROS[ts.text(fn, source)] then
+        return "write"
+      elseif not decays then
         return "read"
       end
       return const_argument(parent:parent(), child, source, lookup) and "read" or "unclear"
-    elseif field and (type == "init_declarator" or type == "return_statement" or type == "cast_expression"
+    elseif decays and (type == "init_declarator" or type == "return_statement" or type == "cast_expression"
       or type == "conditional_expression") then
       return "unclear"
     else
@@ -105,14 +112,15 @@ local function access(node, source, lookup, field)
 end
 
 -- Whether one use of the parameter (an identifier node) keeps the pointed-to
--- data untouched for sure.
-local function safe_use(id, source, lookup)
+-- data untouched for sure. `copyable` says *p is a plain value (a number, a
+-- struct, an enum) that a call or an assignment copies.
+local function safe_use(id, source, lookup, copyable)
   local parent, child = up(id)
   local type = parent and parent:type()
   if type == "pointer_expression" then
-    return operator(parent, source) == "*" and access(parent, source, lookup) == "read"
+    return operator(parent, source) == "*" and access(parent, source, lookup, not copyable) == "read"
   elseif type == "subscript_expression" and same(parent:field("argument")[1], child) then
-    return access(parent, source, lookup) == "read"
+    return access(parent, source, lookup, not copyable) == "read"
   elseif type == "field_expression" and same(parent:field("argument")[1], child) then
     return ts.text(parent:child(1), source) == "->" and access(parent, source, lookup, true) == "read"
   elseif type == "update_expression" or type == "sizeof_expression" then
@@ -129,7 +137,7 @@ local function safe_use(id, source, lookup)
       -- pointer arithmetic: what matters is what's done with the result
       local outer = up(parent)
       if outer and outer:type() == "pointer_expression" and operator(outer, source) == "*" then
-        return access(outer, source, lookup) == "read"
+        return access(outer, source, lookup, not copyable) == "read"
       elseif outer and outer:type() == "argument_list" then
         return const_argument(outer:parent(), select(2, up(parent)), source, lookup)
       end
@@ -158,6 +166,27 @@ local function pointer_param(param, source)
     end
   end
   return name
+end
+
+local PLAIN_TYPES = {
+  primitive_type = true,
+  sized_type_specifier = true,
+  struct_specifier = true,
+  union_specifier = true,
+  enum_specifier = true,
+}
+local PLAIN_TYPEDEFS = { struct = true, union = true, enum = true, scalar = true }
+
+-- Whether what a pointer parameter points to is a plain value. A typedef
+-- the project doesn't define (va_list, jmp_buf) may be an array, so it isn't.
+local function copyable(param, source, typedefs)
+  local type = param:field("type")[1]
+  if not type then
+    return false
+  elseif PLAIN_TYPES[type:type()] then
+    return true
+  end
+  return type:type() == "type_identifier" and PLAIN_TYPEDEFS[typedefs()[ts.text(type, source)]] == true
 end
 
 -- `char *str` rewritten with const after the type, as the PDF writes it.
@@ -202,13 +231,20 @@ end
 
 -- C-A1 candidates: { fn, param, index, name (identifier node), text }.
 function M.const_candidates(tree, source, ctx)
-  local lookup = make_lookup(tree, source, ctx or {})
+  ctx = ctx or {}
+  local lookup = make_lookup(tree, source, ctx)
+  local known
+  local function typedefs()
+    known = known or ts.typedefs(ctx.root, tree, source)
+    return known
+  end
   local result = {}
   for _, fn in ipairs(ts.collect_functions(tree, source)) do
     for index, param in ipairs(fn.params) do
       local name = pointer_param(param, source)
       if name then
         local text = ts.text(name, source)
+        local plain = copyable(param, source, typedefs)
         local uses, safe = 0, true
         local function walk(node)
           for child in node:iter_children() do
@@ -217,7 +253,7 @@ function M.const_candidates(tree, source, ctx)
             end
             if child:type() == "identifier" and ts.text(child, source) == text then
               uses = uses + 1
-              safe = safe_use(child, source, lookup)
+              safe = safe_use(child, source, lookup, plain)
             elseif child:named_child_count() > 0 then
               walk(child)
             end

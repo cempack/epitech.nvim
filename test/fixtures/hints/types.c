@@ -98,3 +98,34 @@ int lengths(char const *str)
     later = 3;
     return len + size + ok + later;
 }
+
+static int read_star_precision(va_list *args)
+{
+    int precision = va_arg(*args, int);
+
+    if (precision < 0) {
+        precision = -1;
+    }
+    return precision;
+}
+
+int show_value(int *value)
+{
+    return show_int(*value);
+}
+
+int restore(jmp_buf *env)
+{
+    return use_env(*env);
+}
+
+typedef struct point_s {
+    int x;
+} point_t;
+
+typedef point_t position_t;
+
+int print_point(position_t *point)
+{
+    return show_point(*point);
+}

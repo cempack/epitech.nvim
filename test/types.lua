@@ -22,11 +22,29 @@ h.assert_equal(found, {
   { 48, "C-A1 str is never modified → char const *str" },
   { 59, "C-A1 player is never modified → struct player const *player" },
   { 74, "C-A1 str is never modified → char const *str" },
+  { 112, "C-A1 value is never modified → int const *value" },
+  { 128, "C-A1 point is never modified → position_t const *point" },
   { 92, "C-A2 holds a length → size_t?" },
   { 93, "C-A2 holds a size → size_t?" },
   { 97, "C-A2 holds a length → size_t?" },
-}, "C-A1 on read-only pointers (not on writes, calls to non-const parameters, returns, struct members copied out"
-  .. " or addresses taken) and C-A2 on ints from strlen, my_strlen and sizeof")
+}, "C-A1 on read-only pointers (not on writes, calls to non-const parameters, returns, struct members copied out,"
+  .. " addresses taken, va_arg, or values of types that may be arrays such as va_list and jmp_buf) and C-A2 on ints"
+  .. " from strlen, my_strlen and sizeof")
+
+-- What typedefs name: a dereference of a plain value is a copy, an array
+-- type (or one the project doesn't define) decays into a pointer.
+h.assert_equal(require("epitech.ts").typedefs(nil, require("epitech.ts").parse_string(src), src), {
+  point_t = "struct",
+  position_t = "struct",
+}, "typedef kinds, aliases resolved")
+local kinds_src = table.concat({
+  "typedef int score_t;", "typedef char name_t[32];", "typedef struct node *node_ptr;", "typedef enum { A } kind_t;",
+  "typedef va_list args_t;", "typedef int (*handler_t)(int);", "typedef union { int i; } value_t;",
+}, "\n")
+h.assert_equal(require("epitech.ts").typedefs(nil, require("epitech.ts").parse_string(kinds_src), kinds_src), {
+  score_t = "scalar", name_t = "other", node_ptr = "other", kind_t = "enum", args_t = "other", handler_t = "other",
+  value_t = "union",
+}, "every kind of typedef")
 h.assert_equal(#vim.tbl_filter(function(d)
   return d.code == "C-A1" or d.code == "C-A2"
 end, hints.collect(src, "types.c", { root = "/tmp", options = config.merge({ hints = { types = false } }).hints })),

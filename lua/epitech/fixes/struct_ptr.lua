@@ -2,9 +2,9 @@
 -- `T const *x`, `x.f` becomes `x->f`, other uses of x become `*x`, the
 -- prototypes follow, and call sites get `&`. A function that modifies its
 -- copy would modify the caller's struct through a pointer, and one that
--- takes the address of its copy can't be checked, so they get a hint. Call sites come from clangd when it's
--- attached, else from `git grep`; the ones that can't take `&` (a struct
--- returned by a call) go to the quickfix list.
+-- takes the address of its copy can't be checked, so they get a hint. Call
+-- sites come from clangd when it's attached, else from `git grep`; the ones
+-- that can't take `&` (a struct returned by a call) go to the quickfix list.
 local fixes = require("epitech.fixes")
 local project = require("epitech.project")
 local ts = require("epitech.ts")
@@ -12,51 +12,14 @@ local util = require("epitech.util")
 
 local M = { id = "struct_ptr", rules = { "C-F7" } }
 
--- Adds to `into` the typedef names under node that stand for a struct (not
--- a pointer to one).
-local function scan_typedefs(node, src, into)
-  for child in node:iter_children() do
-    if child:type() == "type_definition" then
-      local type = child:field("type")[1]
-      if type and type:type() == "struct_specifier" then
-        for _, declarator in ipairs(child:field("declarator")) do
-          if declarator:type() == "type_identifier" then
-            into[ts.text(declarator, src)] = true
-          end
-        end
-      end
-    elseif child:type() ~= "function_definition" and child:named_child_count() > 0 then
-      scan_typedefs(child, src, into)
-    end
-  end
-end
-
--- Hints run this on every pause in typing: each header text is parsed once.
-local header_cache, cached_headers = {}, 0
-
--- Struct typedef names from the project's headers and the given tree.
+-- Typedef names that stand for a struct, from the project's headers and
+-- the given tree.
 function M.struct_typedefs(root, tree, source)
   local result = {}
-  for _, file in ipairs(root and project.files(root, { "*.h" }) or {}) do
-    local src = table.concat(util.read_lines(root .. "/" .. file), "\n")
-    if not header_cache[src] then
-      if cached_headers > 200 then
-        header_cache, cached_headers = {}, 0
-      end
-      local names = {}
-      local header_tree = ts.parse_string(src)
-      if header_tree then
-        scan_typedefs(header_tree, src, names)
-      end
-      header_cache[src] = names
-      cached_headers = cached_headers + 1
+  for name, kind in pairs(ts.typedefs(root, tree, source)) do
+    if kind == "struct" then
+      result[name] = true
     end
-    for typedef in pairs(header_cache[src]) do
-      result[typedef] = true
-    end
-  end
-  if tree then
-    scan_typedefs(tree, source, result)
   end
   return result
 end

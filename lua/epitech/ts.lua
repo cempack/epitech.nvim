@@ -265,6 +265,84 @@ function M.header_prototypes(root)
   return result
 end
 
+local TYPE_KINDS = {
+  struct_specifier = "struct",
+  union_specifier = "union",
+  enum_specifier = "enum",
+  primitive_type = "scalar",
+  sized_type_specifier = "scalar",
+}
+
+-- Adds to `into` what each typedef under node names: "struct", "union",
+-- "enum", "scalar", "alias:<other typedef>", or "other" for array, pointer
+-- and function types.
+local function scan_typedefs(node, src, into)
+  for child in node:iter_children() do
+    if child:type() == "type_definition" then
+      local type = child:field("type")[1]
+      local kind = type and TYPE_KINDS[type:type()]
+      if not kind and type and type:type() == "type_identifier" then
+        kind = "alias:" .. M.text(type, src)
+      end
+      for _, declarator in ipairs(child:field("declarator")) do
+        if declarator:type() == "type_identifier" then
+          into[M.text(declarator, src)] = kind or "other"
+        else
+          local name = M.declared_name(declarator)
+          if name then
+            into[M.text(name, src)] = "other"
+          end
+        end
+      end
+    elseif child:type() ~= "function_definition" and child:named_child_count() > 0 then
+      scan_typedefs(child, src, into)
+    end
+  end
+end
+
+-- Hints run this on every pause in typing: each header text is parsed once.
+local typedef_cache, cached_typedef_headers = {}, 0
+
+-- { [name] = kind } for the typedefs of the project's tracked headers and of
+-- tree: "struct", "union", "enum", "scalar", or "other" for array, pointer
+-- and function types and for aliases of types that aren't known here (a
+-- system header's va_list or jmp_buf).
+function M.typedefs(root, tree, source)
+  local raw = {}
+  local util = require("epitech.util")
+  for _, file in ipairs(root and require("epitech.project").files(root, { "*.h" }) or {}) do
+    local src = table.concat(util.read_lines(root .. "/" .. file), "\n")
+    if not typedef_cache[src] then
+      if cached_typedef_headers > 200 then
+        typedef_cache, cached_typedef_headers = {}, 0
+      end
+      local names = {}
+      local header_tree = M.parse_string(src)
+      if header_tree then
+        scan_typedefs(header_tree, src, names)
+      end
+      typedef_cache[src] = names
+      cached_typedef_headers = cached_typedef_headers + 1
+    end
+    for name, kind in pairs(typedef_cache[src]) do
+      raw[name] = kind
+    end
+  end
+  if tree then
+    scan_typedefs(tree, source, raw)
+  end
+  local result = {}
+  for name, kind in pairs(raw) do
+    local steps = 0
+    while vim.startswith(kind, "alias:") and steps < 10 do
+      kind = raw[kind:sub(7)] or "other"
+      steps = steps + 1
+    end
+    result[name] = vim.startswith(kind, "alias:") and "other" or kind
+  end
+  return result
+end
+
 -- { [name] = { file, is_static, row } } over the project's tracked .c files.
 -- When several files define the same name, the non-static one wins.
 function M.project_functions(root)

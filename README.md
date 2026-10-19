@@ -212,7 +212,11 @@ them back, and `:EpitechHints` toggles.
   char const *str`, with the action **Make str const**, which rewrites the
   definition and the prototypes. The check is cautious: a write through the
   pointer, passing it to a function that doesn't take `const` there,
-  returning it, or any use it can't classify means no hint. An `int` set from
+  returning it, `va_arg` and the other stdarg macros, or any use it can't
+  classify means no hint. Passing `*p` to a function only counts as a copy
+  when `p` points to a number, a struct, a union or an enum (or a project
+  typedef of one); a type such as `va_list` or `jmp_buf` may be an array,
+  which would hand the function a pointer to your data. An `int` set from
   `strlen`, `my_strlen` or `sizeof` gets `C-A2 holds a length → size_t?`
   (no automatic fix: changing a type ripples into comparisons and format
   strings).
