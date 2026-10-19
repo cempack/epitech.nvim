@@ -230,9 +230,12 @@ local function make_lookup(tree, source, ctx)
 end
 
 -- C-A1 candidates: { fn, param, index, name (identifier node), text }.
-function M.const_candidates(tree, source, ctx)
+-- path is the file's, to tell which functions other files store as
+-- function pointers: those keep their parameter types.
+function M.const_candidates(tree, source, ctx, path)
   ctx = ctx or {}
   local lookup = make_lookup(tree, source, ctx)
+  local pointer = ts.pointer_uses(ctx.root, path, tree, source)
   local known
   local function typedefs()
     known = known or ts.typedefs(ctx.root, tree, source)
@@ -242,7 +245,7 @@ function M.const_candidates(tree, source, ctx)
   for _, fn in ipairs(ts.collect_functions(tree, source)) do
     for index, param in ipairs(fn.params) do
       local name = pointer_param(param, source)
-      if name then
+      if name and not pointer(fn) then
         local text = ts.text(name, source)
         local plain = copyable(param, source, typedefs)
         local uses, safe = 0, true
@@ -342,9 +345,9 @@ local function diagnostic(node, message, code)
   return { lnum = row, col = col, end_lnum = end_row, end_col = end_col, message = message, code = code }
 end
 
-function M.run(src, _, ctx)
+function M.run(src, path, ctx)
   local result = {}
-  for _, candidate in ipairs(M.const_candidates(ctx.tree, src, ctx)) do
+  for _, candidate in ipairs(M.const_candidates(ctx.tree, src, ctx, path)) do
     local name = ts.text(candidate.name, src)
     result[#result + 1] = diagnostic(candidate.name, ("C-A1 %s is never modified → %s"):format(name, candidate.text),
       "C-A1")

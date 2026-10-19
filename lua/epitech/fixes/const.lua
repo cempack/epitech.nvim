@@ -32,7 +32,8 @@ function M.actions(buf, range)
   local root = project.root(buf)
   local headers = ts.header_prototypes(root)
   local actions = {}
-  for _, candidate in ipairs(types.const_candidates(tree, buf, { root = root, header_prototypes = headers })) do
+  for _, candidate in ipairs(types.const_candidates(tree, buf, { root = root, header_prototypes = headers },
+    vim.api.nvim_buf_get_name(buf))) do
     if fixes.touches(candidate.param, range) then
       local edits = { { range = fixes.range(candidate.param), newText = candidate.text } }
       for _, proto in ipairs(ts.prototypes(buf)) do

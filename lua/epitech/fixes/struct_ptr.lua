@@ -1,8 +1,9 @@
 -- C-F7: pass a struct by pointer instead of by copy. The parameter becomes
 -- `T const *x`, `x.f` becomes `x->f`, other uses of x become `*x`, the
 -- prototypes follow, and call sites get `&`. A function that modifies its
--- copy would modify the caller's struct through a pointer, and one that
--- takes the address of its copy can't be checked, so they get a hint. Call
+-- copy would modify the caller's struct through a pointer, one that takes
+-- the address of its copy can't be checked, and one stored as a function
+-- pointer must keep the pointer's parameter types, so they get a hint. Call
 -- sites come from clangd when it's attached, else from `git grep`; the ones
 -- that can't take `&` (a struct returned by a call) go to the quickfix list.
 local fixes = require("epitech.fixes")
@@ -105,14 +106,18 @@ local function pointer_text(param, source)
 end
 
 -- Struct parameters passed by value in the function definitions under tree:
--- { fn, param, index, name, edits } or { fn, param, refused }.
-function M.candidates(tree, source, typedefs)
+-- { fn, param, index, name, edits } or { fn, param, refused }. pointer(fn)
+-- tells whether fn is stored as a function pointer (ts.pointer_uses).
+function M.candidates(tree, source, typedefs, pointer)
   local result = {}
   for _, fn in ipairs(ts.collect_functions(tree, source)) do
     for index, param in ipairs(fn.params) do
       if is_struct_param(param, source, typedefs) then
         local name = ts.text(param:field("declarator")[1], source)
         local edits, reason = body_edits(fn, name, source)
+        if not reason and pointer and pointer(fn) then
+          reason = ("%s is used as a function pointer, whose type sets its parameters"):format(fn.name)
+        end
         local candidate = { fn = fn, param = param, index = index, name = name }
         if reason then
           candidate.refused = reason
@@ -289,7 +294,8 @@ function M.convert(buf, row, index)
   local tree = ts.root(buf)
   local root = project.root(buf)
   local candidate
-  for _, c in ipairs(M.candidates(tree, buf, M.struct_typedefs(root, tree, buf))) do
+  local pointer = ts.pointer_uses(root, vim.api.nvim_buf_get_name(buf), tree, buf)
+  for _, c in ipairs(M.candidates(tree, buf, M.struct_typedefs(root, tree, buf), pointer)) do
     if c.fn.signature_row == row and c.index == index and not c.refused then
       candidate = c
     end
@@ -323,7 +329,9 @@ local function candidates(buf)
   if not tree then
     return {}
   end
-  return M.candidates(tree, buf, M.struct_typedefs(project.root(buf), tree, buf))
+  local root = project.root(buf)
+  return M.candidates(tree, buf, M.struct_typedefs(root, tree, buf),
+    ts.pointer_uses(root, vim.api.nvim_buf_get_name(buf), tree, buf))
 end
 
 function M.actions(buf, range)
@@ -337,9 +345,10 @@ function M.actions(buf, range)
   return actions
 end
 
-function M.hints(src, _, ctx)
+function M.hints(src, path, ctx)
   local result = {}
-  for _, candidate in ipairs(M.candidates(ctx.tree, src, M.struct_typedefs(ctx.root, ctx.tree, src))) do
+  for _, candidate in ipairs(M.candidates(ctx.tree, src, M.struct_typedefs(ctx.root, ctx.tree, src),
+    ts.pointer_uses(ctx.root, path, ctx.tree, src))) do
     if candidate.refused then
       local row, col, end_row, end_col = candidate.param:range()
       result[#result + 1] = {

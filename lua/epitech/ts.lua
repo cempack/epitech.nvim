@@ -343,6 +343,71 @@ function M.typedefs(root, tree, source)
   return result
 end
 
+-- Parents under which an identifier is declared rather than used.
+local DECLARING = {
+  declaration = true, init_declarator = true, parameter_declaration = true, pointer_declarator = true,
+  array_declarator = true, function_declarator = true, parenthesized_declarator = true, attributed_declarator = true,
+}
+
+-- The names used as values under node: neither called nor declared. A
+-- function among them is stored as a function pointer ({'c', print_char},
+-- &handler), so its parameter types are set by the pointer's type.
+function M.value_names(node, source)
+  local result = {}
+  local function walk(parent)
+    for child in parent:iter_children() do
+      if child:type() == "identifier" then
+        local type = parent:type()
+        local called = type == "call_expression" and parent:field("function")[1]:id() == child:id()
+        local value = parent:field("value")[1]
+        local declared = DECLARING[type] and not (type == "init_declarator" and value and value:id() == child:id())
+        if not called and not declared then
+          result[M.text(child, source)] = true
+        end
+      elseif child:named_child_count() > 0 then
+        walk(child)
+      end
+    end
+  end
+  walk(node)
+  return result
+end
+
+-- value_names() over the project's tracked .c and .h files other than
+-- `except` (an absolute path), as saved on disk.
+function M.project_value_names(root, except)
+  local result = {}
+  for _, file in ipairs(require("epitech.project").files(root, { "*.c", "*.h" }) or {}) do
+    local path = root .. "/" .. file
+    local parsed = path ~= except and M.parse_file(path)
+    if parsed then
+      parsed.values = parsed.values or M.value_names(parsed.root, parsed.src)
+      for name in pairs(parsed.values) do
+        result[name] = true
+      end
+    end
+  end
+  return result
+end
+
+-- A predicate telling whether a function of the file at path (tree and
+-- source being its current text) is used as a function pointer: in that
+-- file, or, unless it's static, in another file of the project at root.
+-- Changing such a function's parameter types breaks the pointer's type.
+function M.pointer_uses(root, path, tree, source)
+  local here, elsewhere
+  return function(fn)
+    here = here or M.value_names(tree, source)
+    if here[fn.name] then
+      return true
+    elseif fn.is_static or not root then
+      return false
+    end
+    elsewhere = elsewhere or M.project_value_names(root, path and vim.fs.normalize(path))
+    return elsewhere[fn.name] == true
+  end
+end
+
 -- { [name] = { file, is_static, row } } over the project's tracked .c files.
 -- When several files define the same name, the non-static one wins.
 function M.project_functions(root)

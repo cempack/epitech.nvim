@@ -14,8 +14,10 @@ local root, cleanup = h.temp_project({
   ["src/point.c"] = {
     '#include "point.h"', "", "int sum_point(point_t point)", "{", "    return point.x + point.y + get_weight(point);",
     "}", "", "void move_point(point_t point)", "{", "    point.x++;", "    show(point);", "}", "",
-    "int width(struct point_s point)", "{", "    return point.x;", "}",
+    "int width(struct point_s point)", "{", "    return point.x;", "}", "",
+    "int show_point(point_t point)", "{", "    return point.y;", "}",
   },
+  ["src/table.c"] = { '#include "point.h"', "", "int (*const SHOW[])(point_t) = {&show_point};" },
   ["src/main.c"] = {
     '#include "point.h"', "", "int main(void)", "{", "    point_t origin = make_point(0, 0);",
     "    point_t *ptr = &origin;", "",
@@ -38,8 +40,11 @@ end, vim.tbl_filter(function(d)
   return d.code == "C-F7"
 end, hints.collect(table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n"), root .. "/src/point.c",
   { root = root })))
-h.assert_equal(refused, { { 7, "C-F7 no automatic fix: the function modifies its copy of point, which a pointer would"
-  .. " make the caller's" } }, "the reason is a hint")
+h.assert_equal(refused, {
+  { 7, "C-F7 no automatic fix: the function modifies its copy of point, which a pointer would make the caller's" },
+  { 18, "C-F7 no automatic fix: show_point is used as a function pointer, whose type sets its parameters" },
+}, "the reason is a hint")
+h.assert_equal(titles(18), {}, "a function stored as a function pointer gets no action")
 
 local notices = {}
 vim.notify = function(message)

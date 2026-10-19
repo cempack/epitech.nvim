@@ -219,7 +219,10 @@ them back, and `:EpitechHints` toggles.
   classify means no hint. Passing `*p` to a function only counts as a copy
   when `p` points to a number, a struct, a union or an enum (or a project
   typedef of one); a type such as `va_list` or `jmp_buf` may be an array,
-  which would hand the function a pointer to your data. An `int` set from
+  which would hand the function a pointer to your data. A function stored
+  as a function pointer (`{'s', print_str}`, `&handler`, in its own file or
+  any other) gets no hint: the pointer's type sets its parameters, and
+  `const` would no longer match it. An `int` set from
   `strlen`, `my_strlen` or `sizeof` gets `C-A2 holds a length → size_t?`
   (no automatic fix: changing a type ripples into comparisons and format
   strings).
@@ -323,7 +326,8 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   returned by a function) goes to the quickfix list for you to fix. A
   function that modifies its copy, takes its address, calls itself or hides
   the name gets a hint instead: with a pointer it would change the caller's
-  struct, or the change can't be checked.
+  struct, or the change can't be checked. So does a function stored as a
+  function pointer, whose parameters must keep matching the pointer's type.
 
 ### Header sync
 

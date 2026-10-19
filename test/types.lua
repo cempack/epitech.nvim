@@ -79,4 +79,29 @@ require("epitech").format_buffer(buf)
 h.assert_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), result, "the formatter keeps the result")
 cleanup()
 
+-- A function stored as a function pointer keeps its parameter types: the
+-- pointer's type sets them. Stored in another file, or static and stored in
+-- its own file.
+local table_root, table_cleanup = h.temp_project({
+  ["include/my.h"] = {
+    "#ifndef MY_H_", "    #define MY_H_", "", "typedef int (*printer_t)(char *);", "int print_str(char *str);",
+    "int count_char(char *str);", "", "#endif",
+  },
+  ["src/print.c"] = {
+    '#include "my.h"', "", "int print_str(char *str)", "{", "    return str[0] == 'p';", "}", "",
+    "static int print_twice(char *str)", "{", "    return str[0] == 't';", "}", "",
+    "static const printer_t LOCAL[] = {&print_twice};", "", "int count_char(char *str)", "{",
+    "    return str[0] == 'a';", "}",
+  },
+  ["src/table.c"] = { '#include "my.h"', "", "static const printer_t PRINTERS[] = {print_str};" },
+})
+local print_src = table.concat(vim.fn.readfile(table_root .. "/src/print.c"), "\n")
+h.assert_equal(vim.tbl_map(function(d)
+  return d.lnum
+end, vim.tbl_filter(function(d)
+  return d.code == "C-A1"
+end, hints.collect(print_src, table_root .. "/src/print.c", { root = table_root }))), { 14 },
+  "only count_char, which no table stores, gets C-A1")
+table_cleanup()
+
 print("Epitech type hint tests passed")
