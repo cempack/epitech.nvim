@@ -49,6 +49,12 @@ h.assert_equal(naming_hints(src, "src/naming.c", config.merge({ hints = { naming
 
 h.assert_equal({ naming.has_verb("my_putstr_error", naming.verbs), naming.has_verb("vowels", naming.verbs) },
   { true, false }, "has_verb")
+h.assert_equal(vim.tbl_map(function(name)
+  return naming.has_verb(name, naming.verbs)
+end, { "dispatch", "skip_spaces", "shell_loop", "str_to_int", "to_upper", "int_to", "player_pos", "window_size",
+  "map_width", "player_hitbox", "user_name" }),
+  { true, true, true, true, false, false, false, false, false, false, false },
+  "more verbs, x_to_y conversions, and nouns that start like verbs")
 h.assert_equal(naming.upper_snake("bufferSize2Max"), "BUFFER_SIZE2_MAX", "upper_snake")
 
 print("Epitech naming hint tests passed")

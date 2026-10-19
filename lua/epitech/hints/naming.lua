@@ -18,6 +18,21 @@ M.verbs = {
   "start", "stop", "alloc", "draw", "render", "split", "join", "trim", "format", "concat", "compare", "match", "send",
   "receive", "connect", "wait", "toggle", "enable", "disable", "list", "dump", "eval", "solve", "generate", "pick",
   "select", "filter", "merge", "sum", "reverse", "rotate",
+  -- More verbs from student projects. Words that begin common nouns (play
+  -- for player, win for window, map, link, hash, hit, use for user) stay
+  -- out: a name holding the noun would pass for one holding a verb.
+  "dispatch", "skip", "loop", "call", "try", "exit", "quit", "finish", "begin", "catch", "emit", "trace", "debug",
+  "test", "ensure", "verify", "assert", "transform", "reduce", "collect", "extract", "prepend", "shift", "peek",
+  "scan", "tokenize", "encode", "decode", "expand", "resize", "realloc", "grow", "shrink", "truncate", "align",
+  "clamp", "spawn", "fork", "kill", "pause", "resume", "refresh", "advance", "animate", "shoot", "collide",
+  "detect", "fetch", "retrieve", "lookup", "query", "request", "respond", "reply", "listen", "accept", "bind",
+  "attach", "detach", "register", "notify", "warn", "ask", "choose", "determine", "resolve", "schedule", "sleep",
+  "unlock", "take", "give", "keep", "drop", "ignore", "flush", "sync", "change", "modify", "edit", "replace",
+  "assign", "increment", "decrement", "multiply", "divide", "subtract", "negate", "invert", "flip", "translate",
+  "zoom", "cast", "strip", "sanitize", "normalize", "escape", "capitalize", "fix", "manage", "configure",
+  "prepare", "clean", "abort", "fail", "throw", "explore", "visit", "walk", "traverse", "browse", "navigate",
+  "follow", "iterate", "enumerate", "unlink", "disconnect", "mount", "include", "exclude", "exist", "contain",
+  "equal", "need", "unset", "shuffle", "jump", "turn", "tell", "blit", "hide", "measure", "bounce",
 }
 
 M.vague_files = {
@@ -39,11 +54,17 @@ M.classics = {
 }
 
 -- Whether a function name contains a verb: split on _, a leading "my"
--- ignored, one word being a verb or starting with one (putstr).
+-- ignored, one word being a verb or starting with one (putstr). A
+-- conversion, x_to_y (str_to_int), says what it does too.
 function M.has_verb(name, verbs)
   local words = vim.split(name:lower(), "_", { trimempty = true })
   if words[1] == "my" then
     table.remove(words, 1)
+  end
+  for i = 2, #words - 1 do
+    if words[i] == "to" then
+      return true
+    end
   end
   for _, word in ipairs(words) do
     for _, verb in ipairs(verbs) do

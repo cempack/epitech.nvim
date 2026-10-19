@@ -235,8 +235,12 @@ them back, and `:EpitechHints` toggles.
   returns something), a vague file name such as `utils.c`, a typedef name
   that doesn't end in `_t`, and macros, enum values or global constants that
   aren't UPPER_SNAKE_CASE. A name counts as having a verb when one of its
-  words (a leading `my` aside) is a verb or starts with one, like `putstr`;
-  the lib/my classics (`my_strlen`, `my_getnbr`…) and `main` are left alone.
+  words (a leading `my` aside) is a verb or starts with one, like `putstr`,
+  or when it's a conversion, `x_to_y` (`str_to_int`); the lib/my classics
+  (`my_strlen`, `my_getnbr`…) and `main` are left alone. The built-in list
+  covers about 200 verbs (`dispatch`, `skip`, `loop`, `execute`…), leaving
+  out those that start common nouns (`play` for `player`, `win` for
+  `window`, `map`).
   `verbs` and `vague_files` replace the built-in lists.
 
 ```lua
