@@ -65,10 +65,16 @@ local function grep_command(names)
   return cmd
 end
 
--- The set of names mentioned in .c files other than `own` (relative to root).
-local function parse_grep(stdout, own)
+-- The set of names mentioned in .c files other than `own` (relative to root),
+-- or nil when git grep failed (no git, not a repository): then nothing is
+-- known, and every function would wrongly look unused elsewhere. Exit code
+-- 1 only means no match.
+local function parse_grep(result, own)
+  if result.code ~= 0 and result.code ~= 1 then
+    return nil
+  end
   local used = {}
-  for line in vim.gsplit(stdout or "", "\n", { plain = true, trimempty = true }) do
+  for line in vim.gsplit(result.stdout or "", "\n", { plain = true, trimempty = true }) do
     local file, name = line:match("^(.*):([%w_]+)$")
     if file and file ~= own then
       used[name] = true
@@ -78,7 +84,8 @@ local function parse_grep(stdout, own)
 end
 
 -- Which of names other .c files of the project mention: calls on_done(set),
--- or runs synchronously and returns the set when on_done is nil.
+-- or runs synchronously and returns the set when on_done is nil. The set is
+-- nil when the search failed.
 function M.used_elsewhere(root, path, names, on_done)
   local own = util.relative(path, root) or path
   if #names == 0 then
@@ -88,11 +95,11 @@ function M.used_elsewhere(root, path, names, on_done)
     return {}
   end
   if not on_done then
-    return parse_grep(vim.system(grep_command(names), { cwd = root, text = true }):wait().stdout, own)
+    return parse_grep(util.system(grep_command(names), { cwd = root, text = true }):wait(), own)
   end
-  vim.system(grep_command(names), { cwd = root, text = true }, function(result)
+  util.system(grep_command(names), { cwd = root, text = true }, function(result)
     vim.schedule(function()
-      on_done(parse_grep(result.stdout, own))
+      on_done(parse_grep(result, own))
     end)
   end)
 end

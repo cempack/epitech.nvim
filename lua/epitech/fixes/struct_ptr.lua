@@ -251,7 +251,7 @@ end
 
 -- The files mentioning name, from git grep: { [path] = false }.
 local function grep_sites(root, name)
-  local result = vim.system({ "git", "grep", "-l", "-w", "-F", "--untracked", "-e", name, "--", "*.c" },
+  local result = util.system({ "git", "grep", "-l", "-w", "-F", "--untracked", "-e", name, "--", "*.c" },
     { cwd = root, text = true }):wait()
   local sites = {}
   for file in vim.gsplit(result.stdout or "", "\n", { plain = true, trimempty = true }) do

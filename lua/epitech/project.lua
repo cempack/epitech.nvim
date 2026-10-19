@@ -50,7 +50,7 @@ function M.files(root, pathspecs, opts)
   end
   cmd[#cmd + 1] = "--"
   vim.list_extend(cmd, pathspecs or {})
-  local result = vim.system(cmd, { cwd = root, text = true }):wait()
+  local result = require("epitech.util").system(cmd, { cwd = root, text = true }):wait()
   if result.code ~= 0 then
     return nil
   end

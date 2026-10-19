@@ -310,7 +310,7 @@ function M.untrack(root, on_done)
     end
     local cmd = { "git", "rm", "--cached", "--quiet", "--" }
     vim.list_extend(cmd, files)
-    local result = vim.system(cmd, { cwd = root, text = true }):wait()
+    local result = util.system(cmd, { cwd = root, text = true }):wait()
     if result.code ~= 0 then
       util.notify("git rm failed: " .. (result.stderr or ""), vim.log.levels.ERROR)
       return on_done(false)

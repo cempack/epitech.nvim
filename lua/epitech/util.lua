@@ -2,6 +2,31 @@
 -- current buffer.
 local M = {}
 
+-- vim.system, with a program or working directory that doesn't exist
+-- reported as a failed run ({ code = -1, stdout = "", stderr = reason })
+-- instead of an error: hints run git on every pause in typing, and git may
+-- be missing, or a new file's directory not created yet. on_exit then runs
+-- before this returns.
+function M.system(cmd, opts, on_exit)
+  local ok, handle = pcall(vim.system, cmd, opts, on_exit)
+  if ok then
+    return handle
+  end
+  local result = { code = -1, signal = 0, stdout = "", stderr = tostring(handle) }
+  if on_exit then
+    on_exit(result)
+  end
+  return {
+    wait = function()
+      return result
+    end,
+    kill = function() end,
+    is_closing = function()
+      return true
+    end,
+  }
+end
+
 function M.normalize(path)
   return vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
 end

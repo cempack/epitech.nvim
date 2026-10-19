@@ -152,5 +152,33 @@ h.assert_equal(#vim.tbl_filter(function(d)
   return d.code == "C-A4"
 end, vim.diagnostic.get(c, { namespace = hints.ns })), 0, "static hints off")
 
+-- No git, no repository or no directory: nothing is known, so no hint
+-- (an empty answer would make every function look unused elsewhere), and
+-- no error on every pause in typing.
+local plain = vim.fn.tempname()
+vim.fn.mkdir(plain, "p")
+h.assert_equal(static.used_elsewhere(plain, plain .. "/a.c", { "helper" }), nil, "outside a repository")
+h.assert_equal(static.used_elsewhere(plain .. "/missing", plain .. "/missing/a.c", { "helper" }), nil,
+  "a directory that doesn't exist yet")
+h.assert_equal(require("epitech.project").files(plain .. "/missing", { "*.c" }), nil, "files: no directory")
+local path = vim.env.PATH
+vim.env.PATH = plain
+local answer = "pending"
+static.used_elsewhere(root, root .. "/src/a.c", { "helper" }, function(used)
+  answer = used
+end)
+assert(vim.wait(5000, function()
+  return answer ~= "pending"
+end), "async search answered")
+h.assert_equal(answer, nil, "git missing: the async search answers nil")
+h.assert_equal(require("epitech.project").files(root, { "*.c" }, { untracked = true }), nil, "files: git missing")
+vim.env.PATH = path
+local new_file = h.buffer(plain .. "/missing/new.c", { "static int f(char *s)", "{", "    return s[0];", "}", "",
+  "int g(void)", "{", "    return f(\"a\");", "}" })
+hints.refresh(new_file)
+static.search(new_file, require("epitech.project").root(new_file))
+vim.wait(200)
+vim.fn.delete(plain, "rf")
+
 cleanup()
 print("Epitech static hint tests passed")

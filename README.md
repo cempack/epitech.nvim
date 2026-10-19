@@ -56,7 +56,8 @@ Requirements:
 - `epiclang` (Epitech's Banana checker) for live diagnostics, the project
   check and the push guard; everything else works without it
 - git, for the "could be static" hint, header sync, the project check and
-  the push guard
+  the push guard; without git, or outside a repository, those stay quiet
+  instead of failing
 - optional: clangd (LazyVim's clangd extra) finds call sites for **Pass x by
   pointer** (`git grep` otherwise), Trouble shows the project check (the
   quickfix list otherwise), blink.cmp or LuaSnip load the snippets

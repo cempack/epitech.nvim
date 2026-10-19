@@ -18,7 +18,7 @@ end
 -- The repository's hooks directory (worktrees and core.hooksPath
 -- included), or nil outside git.
 function M.hooks_dir(root)
-  local result = vim.system({ "git", "rev-parse", "--git-path", "hooks" }, { cwd = root, text = true }):wait()
+  local result = util.system({ "git", "rev-parse", "--git-path", "hooks" }, { cwd = root, text = true }):wait()
   if result.code ~= 0 then
     return nil
   end
