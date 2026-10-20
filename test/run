@@ -38,6 +38,7 @@ run decl
 run one_stmt
 run switch
 run struct_ptr
+run extract
 run header_sync
 run move_header
 run scaffold

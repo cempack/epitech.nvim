@@ -19,7 +19,7 @@ local function create_server(dispatchers)
     if method == "initialize" then
       result = {
         capabilities = {
-          codeActionProvider = { codeActionKinds = { "quickfix", "refactor.rewrite" } },
+          codeActionProvider = { codeActionKinds = { "quickfix", "refactor.rewrite", "refactor.extract" } },
           positionEncoding = "utf-8",
         },
         serverInfo = { name = "epitech.nvim" },

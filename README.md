@@ -93,6 +93,7 @@ diagnostics, meters, hints and fixes below are for.
 | `:EpitechSyncHeader` | Update the project header's prototypes |
 | `:EpitechNew[!] [name]` | Create a project skeleton |
 | `:EpitechNewFile <path>` | Create a source file with its header, add it to `SRC` |
+| `:'<,'>EpitechExtract [name]` | Move the selected statements into a new function |
 | `:'<,'>EpitechMoveTo <path>` | Move the selected functions to another file |
 | `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
 | `:EpitechHooks [remove]` | Install (or remove) the pre-push hook |
@@ -381,6 +382,73 @@ the Makefile is left alone and you're told what to add.
 ```lua
 scaffold = { cflags = "-Wall -Wextra" },
 ```
+
+### Extracting a function
+
+When a function gets too long (C-F4: 20 lines), select some of its
+statements in visual mode and pick **Extract to a function…** in the code
+actions (`<leader>ca`), or run `:'<,'>EpitechExtract [name]`. You type the
+new function's name, and the statements move into a `static` function just
+above the current one, with a call where they were. clangd's own "Extract to
+function" only works on C++ files.
+
+```c
+// before, with the while loop selected
+int count_text(char const *str)
+{
+    int count = 0;
+    int i = 0;
+
+    while (str[i] != '\0') {
+        count += str[i] == ' ';
+        i++;
+    }
+    return count;
+}
+
+// after, named count_spaces
+static void count_spaces(char const *str, int *count)
+{
+    int i = 0;
+
+    while (str[i] != '\0') {
+        *count += str[i] == ' ';
+        i++;
+    }
+}
+
+int count_text(char const *str)
+{
+    int count = 0;
+
+    count_spaces(str, &count);
+    return count;
+}
+```
+
+Each variable the statements use but don't declare is handled so the
+program does the same thing:
+
+- **moved** into the new function, with its declaration, when nothing else
+  uses it, it's declared at the top with a literal value (or none), and no
+  loop around the selection repeats it (`i` above);
+- passed **as a pointer** when it's an array;
+- passed **by pointer** when it's a struct (C-F7, fields become `p->x`), its
+  address is taken, or the statements change it and something reads it
+  afterwards (`count` above, `*count += …`); inside a loop, the next turn
+  counts as afterwards;
+- passed **by value** otherwise.
+
+A selection that runs to the end of the function keeps its `return`s: the
+call becomes `return search_word(str, word, len);`. The new function's
+signature and the call are wrapped at 80 columns like the formatter does.
+When the move would change what the program does, the action's title says
+why and nothing happens: a `return` before the end of the function, a
+`break` or `continue` leaving the selection, `goto`, preprocessor lines, a
+variable declared in the selection and used after it, more than 4
+parameters (C-F5), part of the declarations at the top of the function, or
+`sizeof` on an array that would become a pointer. The name must be
+snake_case and not already taken.
 
 ### Splitting a file
 

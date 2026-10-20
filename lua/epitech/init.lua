@@ -118,6 +118,10 @@ function M.setup(opts)
     require("epitech.split").move_to(args.args, args.line1 - 1, args.line2 - 1)
   end, "Move the selected functions to another file", { nargs = 1, range = true, complete = "file" })
 
+  command("EpitechExtract", function(args)
+    require("epitech.fixes.extract").extract(0, args.line1 - 1, args.line2 - 1, args.args)
+  end, "Move the selected statements into a new function", { nargs = "?", range = true })
+
   command("EpitechCheck", function(args)
     if args.args == "untrack" then
       require("epitech.check").untrack()
