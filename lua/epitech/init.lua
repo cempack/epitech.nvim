@@ -108,7 +108,7 @@ function M.setup(opts)
   end, "Update the project header's prototypes")
 
   command("EpitechNew", function(args)
-    require("epitech.scaffold").new(args.args, nil, args.bang)
+    require("epitech.scaffold").create(args.args, nil, args.bang)
   end, "Create an Epitech project in the current directory", { nargs = "?", bang = true })
   command("EpitechNewFile", function(args)
     require("epitech.scaffold").new_file(args.args ~= "" and args.args or nil)

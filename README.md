@@ -372,6 +372,13 @@ exit code). A name ending in `.a` (`:EpitechNew libmy.a`) makes a library
 instead: built with `ar rc`, with `include/my.h`, `src/my.c` and tests
 linked with `-L. -lmy`.
 
+Before writing anything, `:EpitechNew` asks which libraries the project
+links: CSFML graphics (with window and system), CSFML audio, CSFML network,
+ncurses and math (`-lm`). Pick an entry to check or uncheck it, then
+**Done** (Enter on Done right away means none). The flags go in an
+`LDLIBS = …` line, and `$(LDLIBS)` is in the link and `unit_tests` lines,
+so adding a library later only means editing that line.
+
 `<leader>cN` (or `:EpitechNewFile` alone) asks for the path in a small
 window. `:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
 (asking for the description), adds it to the Makefile and opens it: one more

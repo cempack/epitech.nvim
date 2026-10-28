@@ -24,10 +24,63 @@ local function list(variable, values)
   return lines
 end
 
+-- Libraries Epitech projects often link, offered by :EpitechNew. Audio and
+-- network need csfml-system too.
+M.libraries = {
+  {
+    name = "CSFML graphics (graphics, window, system)",
+    flags = { "-lcsfml-graphics", "-lcsfml-window", "-lcsfml-system" },
+  },
+  { name = "CSFML audio", flags = { "-lcsfml-audio", "-lcsfml-system" } },
+  { name = "CSFML network", flags = { "-lcsfml-network", "-lcsfml-system" } },
+  { name = "ncurses", flags = { "-lncurses" } },
+  { name = "math (-lm)", flags = { "-lm" } },
+}
+
+-- The flags of the chosen libraries (indexes in M.libraries), in the
+-- list's order, each once.
+function M.library_flags(chosen)
+  local flags, seen = {}, {}
+  for i, library in ipairs(M.libraries) do
+    if chosen[i] then
+      for _, flag in ipairs(library.flags) do
+        if not seen[flag] then
+          seen[flag] = true
+          flags[#flags + 1] = flag
+        end
+      end
+    end
+  end
+  return flags
+end
+
+-- Asks which libraries to link: picking one toggles it, Done (first, so
+-- Enter alone means none) finishes. on_done receives the flags, or nil
+-- when the picker was closed.
+function M.pick_libraries(on_done)
+  local chosen = {}
+  local function ask()
+    local items = { "Done" }
+    for i, library in ipairs(M.libraries) do
+      items[#items + 1] = (chosen[i] and "[x] " or "[ ] ") .. library.name
+    end
+    vim.ui.select(items, { prompt = "Libraries to link (pick to toggle, then Done)" }, function(_, index)
+      if not index then
+        return on_done(nil)
+      elseif index == 1 then
+        return on_done(M.library_flags(chosen))
+      end
+      chosen[index - 1] = not chosen[index - 1]
+      ask()
+    end)
+  end
+  ask()
+end
+
 -- The Makefile of a new project. A name ending in .a (libmy.a) builds a
 -- library with ar and links the tests against it; any other name builds a
 -- program, whose tests take every source but main.c.
-function M.makefile(name, sources, tests)
+function M.makefile(name, sources, tests, ldlibs)
   local options = config.options.scaffold
   local library = name:match("^lib(.+)%.a$")
   local lines = {
@@ -46,6 +99,12 @@ function M.makefile(name, sources, tests)
   if options.cflags ~= "" then
     vim.list_extend(lines, { "CFLAGS = " .. options.cflags, "" })
   end
+  if ldlibs and #ldlibs > 0 then
+    local line = "LDLIBS = " .. table.concat(ldlibs, " ")
+    -- C-F3: one flag per line when they don't fit on one.
+    vim.list_extend(lines, #line < 80 and { line } or list("LDLIBS", ldlibs))
+    lines[#lines + 1] = ""
+  end
   vim.list_extend(lines, { "NAME = " .. name, "" })
   vim.list_extend(lines, list("SRC", sources))
   vim.list_extend(lines, { "", "OBJ = $(SRC:.c=.o)", "" })
@@ -58,15 +117,15 @@ function M.makefile(name, sources, tests)
       "unit_tests: CFLAGS += --coverage",
       "unit_tests: fclean $(NAME)",
       "\t$(CC) -o unit_tests $(TEST_SRC) $(CPPFLAGS) -L. -l" .. library .. " -lcriterion \\",
-      "\t--coverage",
+      "\t$(LDLIBS) --coverage",
     })
   else
     vim.list_extend(lines, {
-      "\t$(CC) -o $(NAME) $(OBJ)",
+      "\t$(CC) -o $(NAME) $(OBJ) $(LDLIBS)",
       "",
       "unit_tests: fclean",
       "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
-      "\t$(CPPFLAGS) $(CFLAGS) -lcriterion --coverage",
+      "\t$(CPPFLAGS) $(CFLAGS) $(LDLIBS) -lcriterion --coverage",
     })
   end
   vim.list_extend(lines, {
@@ -98,14 +157,14 @@ function M.base(name)
 end
 
 -- The files of a new project: { [relative path] = lines }.
-function M.templates(name)
+function M.templates(name, ldlibs)
   local base = M.base(name)
   local guard = header.guard_name(base .. ".h")
   local files = {}
   local library = base ~= name
   local first_source = library and ("src/" .. base .. ".c") or "src/main.c"
 
-  files["Makefile"] = M.makefile(name, { first_source }, { "tests/test_" .. base .. ".c" })
+  files["Makefile"] = M.makefile(name, { first_source }, { "tests/test_" .. base .. ".c" }, ldlibs)
 
   files["include/" .. base .. ".h"] = vim.list_extend(c_header(name, "Declarations for " .. name), {
     "",
@@ -148,7 +207,7 @@ end
 -- :EpitechNew[!] [name]: the skeleton in dir (the current directory). It
 -- refuses when a Makefile exists, unless force is set. Returns the files
 -- written (relative paths), or nil.
-function M.new(name, dir, force)
+function M.new(name, dir, force, ldlibs)
   dir = util.normalize(dir or vim.fn.getcwd()):gsub("/$", "")
   name = (name and name ~= "") and name or vim.fs.basename(dir)
   if vim.fn.filereadable(dir .. "/Makefile") == 1 and not force then
@@ -156,7 +215,7 @@ function M.new(name, dir, force)
     return nil
   end
   local written = {}
-  for path, lines in pairs(M.templates(name)) do
+  for path, lines in pairs(M.templates(name, ldlibs)) do
     vim.fn.mkdir(vim.fs.dirname(dir .. "/" .. path), "p")
     vim.fn.writefile(lines, dir .. "/" .. path)
     written[#written + 1] = path
@@ -168,6 +227,19 @@ function M.new(name, dir, force)
   project.save_state(dir, state)
   util.notify(("Created %s: %s"):format(name, table.concat(written, ", ")))
   return written
+end
+
+-- :EpitechNew[!] [name]: asks for the libraries to link, then M.new().
+function M.create(name, dir, force)
+  dir = dir or vim.fn.getcwd()
+  if vim.fn.filereadable(dir .. "/Makefile") == 1 and not force then
+    return M.new(name, dir, force)
+  end
+  M.pick_libraries(function(flags)
+    if flags then
+      M.new(name, dir, force, flags)
+    end
+  end)
 end
 
 -- :EpitechNewFile [path]: a .c or .h file with its Epitech header, relative

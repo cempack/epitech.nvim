@@ -19,7 +19,17 @@ vim.fn.mkdir(dir, "p")
 dir = vim.uv.fs_realpath(dir)
 vim.fn.chdir(dir)
 require("epitech").setup()
+-- The library picker: CSFML graphics, then math, then Done.
+local picks = { 2, 6, 1 }
+local shown = {}
+vim.ui.select = function(items, _, on_choice)
+  shown[#shown + 1] = items
+  local index = table.remove(picks, 1) or 1
+  on_choice(items[index], index)
+end
 vim.cmd("EpitechNew demo")
+h.assert_equal(shown[3], { "Done", "[x] CSFML graphics (graphics, window, system)", "[ ] CSFML audio",
+  "[ ] CSFML network", "[ ] ncurses", "[x] math (-lm)" }, "picked libraries are checked")
 
 local function read(path)
   return vim.fn.readfile(dir .. "/" .. path)
@@ -38,12 +48,22 @@ local function makefile_tail(unit_tests)
 end
 h.assert_equal(read("Makefile"), vim.list_extend({
   "##", "## EPITECH PROJECT, " .. year, "## demo", "## File description:", "## Makefile", "##", "",
-  "CC = epiclang", "", "CPPFLAGS = -I./include", "", "NAME = demo", "", "SRC = src/main.c", "", "OBJ = $(SRC:.c=.o)",
-  "", "TEST_SRC = tests/test_demo.c", "", "all: $(NAME)", "", "$(NAME): $(OBJ)", "\t$(CC) -o $(NAME) $(OBJ)", "",
+  "CC = epiclang", "", "CPPFLAGS = -I./include", "",
+  "LDLIBS = -lcsfml-graphics -lcsfml-window -lcsfml-system -lm", "", "NAME = demo", "", "SRC = src/main.c", "",
+  "OBJ = $(SRC:.c=.o)", "", "TEST_SRC = tests/test_demo.c", "", "all: $(NAME)", "", "$(NAME): $(OBJ)",
+  "\t$(CC) -o $(NAME) $(OBJ) $(LDLIBS)", "",
 }, makefile_tail({
   "unit_tests: fclean", "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
-  "\t$(CPPFLAGS) $(CFLAGS) -lcriterion --coverage",
-})), "Makefile")
+  "\t$(CPPFLAGS) $(CFLAGS) $(LDLIBS) -lcriterion --coverage",
+})), "Makefile with the picked libraries")
+h.assert_equal(require("epitech.scaffold").library_flags({ [2] = true, [3] = true }),
+  { "-lcsfml-audio", "-lcsfml-system", "-lcsfml-network" }, "csfml-system once")
+local every = require("epitech.scaffold").makefile("demo", { "src/main.c" }, { "tests/test_demo.c" },
+  require("epitech.scaffold").library_flags({ true, true, true, true, true }))
+h.assert_equal(vim.list_slice(every, 12, 19), { "LDLIBS = -lcsfml-graphics \\", "\t\t-lcsfml-window \\",
+  "\t\t-lcsfml-system \\", "\t\t-lcsfml-audio \\", "\t\t-lcsfml-network \\", "\t\t-lncurses \\", "\t\t-lm", "" },
+  "every library: one per line")
+h.assert_equal(makefile_checks.run(table.concat(every, "\n") .. "\n", "Makefile", {}), {}, "still under 80 columns")
 -- A library (libmy.a) is built with ar and its tests link against it; cc
 -- and cflags come from the options.
 require("epitech.config").setup({ scaffold = { cc = "gcc", cflags = "-Wall -Wextra" } })
@@ -54,7 +74,7 @@ h.assert_equal(vim.list_slice(library, 8, #library), vim.list_extend({
   "all: $(NAME)", "", "$(NAME): $(OBJ)", "\tar rc $(NAME) $(OBJ)", "",
 }, makefile_tail({
   "unit_tests: CFLAGS += --coverage", "unit_tests: fclean $(NAME)",
-  "\t$(CC) -o unit_tests $(TEST_SRC) $(CPPFLAGS) -L. -lmy -lcriterion \\", "\t--coverage",
+  "\t$(CC) -o unit_tests $(TEST_SRC) $(CPPFLAGS) -L. -lmy -lcriterion \\", "\t$(LDLIBS) --coverage",
 })), "library Makefile")
 h.assert_equal(vim.tbl_keys(require("epitech.scaffold").templates("libmy.a")), vim.tbl_keys({
   Makefile = 1, ["include/my.h"] = 1, ["src/my.c"] = 1, ["tests/test_my.c"] = 1, [".gitignore"] = 1,
