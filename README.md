@@ -380,7 +380,7 @@ instead: built with `ar rc`, with `include/my.h`, `src/my.c` and tests
 linked with `-L. -lmy`.
 
 `<leader>cN` (or `:EpitechNewFile` alone) asks for the path in a small
-window, `src/` already typed. `:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
+window. `:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
 (asking for the description), adds it to the Makefile and opens it: one more
 line of the `SRC = … \` list (`TEST_SRC` for files under `tests/`), or a
 `SRC += …` line when the Makefile uses those. A `.h` gets an include guard

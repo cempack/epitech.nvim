@@ -182,8 +182,8 @@ function M.new_file(path, root, on_done)
   root = root or project.root(0)
   if not path then
     -- No path given (<leader>cN): ask for it, relative to the project.
-    return vim.ui.input({ prompt = "New file: ", default = "src/" }, function(answer)
-      if answer and answer ~= "" and answer ~= "src/" then
+    return vim.ui.input({ prompt = "New file: " }, function(answer)
+      if answer and answer ~= "" then
         M.new_file(answer, root, on_done)
       end
     end)

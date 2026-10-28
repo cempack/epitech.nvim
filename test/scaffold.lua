@@ -115,7 +115,7 @@ h.assert_equal(#vim.tbl_filter(function(line)
   return line:find("parse_args.h", 1, true) ~= nil
 end, read("Makefile")), 0, "a header isn't added to the Makefile")
 
--- <leader>cN asks for the path in a small window, src/ already typed.
+-- <leader>cN asks for the path in a small window.
 h.assert_equal(vim.fn.maparg("<leader>cN", "n", false, true).desc, "Epitech New File", "<leader>cN")
 local prompts = {}
 vim.ui.input = function(opts, on_confirm)
@@ -123,13 +123,14 @@ vim.ui.input = function(opts, on_confirm)
   on_confirm(opts.prompt == "New file: " and "src/display.c" or "Display")
 end
 vim.fn.maparg("<leader>cN", "n", false, true).callback()
-h.assert_equal(prompts, { { "New file: ", "src/" }, { "File description: " } }, "asks for the path, then the description")
+h.assert_equal(prompts, { { "New file: " }, { "File description: " } }, "asks for the path, then the description")
 h.assert_equal(read("src/display.c"), c_header("Display"), "file created from the typed path")
 vim.ui.input = function(_, on_confirm)
-  on_confirm("src/")
+  on_confirm("")
 end
+local before = vim.fn.readfile(dir .. "/Makefile")
 vim.cmd("EpitechNewFile")
-h.assert_equal(vim.fn.filereadable(dir .. "/src/"), 0, "src/ alone creates nothing")
+h.assert_equal(vim.fn.readfile(dir .. "/Makefile"), before, "an empty answer creates nothing")
 vim.fn.chdir("/")
 vim.fn.delete(dir, "rf")
 
