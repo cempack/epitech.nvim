@@ -360,7 +360,7 @@ versions lose their `/* epitech.nvim: … */` markers on the next sync.
 ### New projects and files
 
 `:EpitechNew [name]` creates a project in the current directory (named after
-it by default): a `Makefile`, `include/<name>.h` with its guard, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
+it by default): a `Makefile`, `include/<name>.h` with its guard, `src/main.c` (`int main(void)`), `tests/test_<name>.c` and a `.gitignore` for
 build products. Everything has its Epitech header and passes the formatter.
 It refuses when a `Makefile` exists; `:EpitechNew!` overwrites.
 
