@@ -105,7 +105,8 @@ function M.refresh(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  if not config.options.makefile.enabled or vim.bo[buf].filetype ~= "make" then
+  if not config.options.makefile.enabled or vim.bo[buf].filetype ~= "make"
+    or require("epitech.ignore").ignored(buf) then
     vim.diagnostic.reset(M.ns, buf)
     return
   end

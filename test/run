@@ -45,6 +45,7 @@ run scaffold
 run split
 run snippets
 run check
+run ignore
 run hooks
 run header-filetypes
 

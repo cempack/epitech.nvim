@@ -207,6 +207,11 @@ function M.run(root, on_done)
   if not files then
     return on_done({ error = root .. " isn't a git repository" })
   end
+  -- :EpitechIgnore: ignored files (or the whole project) aren't checked.
+  local ignore = require("epitech.ignore")
+  files = vim.tbl_filter(function(file)
+    return not ignore.ignored_path(root, file)
+  end, files)
   local sources = vim.tbl_filter(function(file)
     return file:match("%.[ch]$") ~= nil
   end, files)

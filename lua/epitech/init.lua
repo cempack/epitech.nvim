@@ -41,8 +41,9 @@ function M.formatter(opts)
       "-",
     },
     stdin = true,
-    condition = function()
-      return vim.fn.filereadable(vim_config) == 1
+    condition = function(_, ctx)
+      return not require("epitech.ignore").ignored(ctx and ctx.buf or 0)
+        and vim.fn.filereadable(vim_config) == 1
         and vim.fn.filereadable(format.style_file) == 1
         and vim.fn.executable("clang-format") == 1
     end,
@@ -124,6 +125,23 @@ function M.setup(opts)
   command("EpitechExtract", function(args)
     require("epitech.fixes.extract").extract(0, args.line1 - 1, args.line2 - 1, args.args)
   end, "Move the selected statements into a new function", { nargs = "?", range = true })
+
+  command("EpitechIgnore", function(args)
+    require("epitech.ignore").set(args.args, true)
+  end, "Turn the Epitech rules off for this file or project", {
+    nargs = "?",
+    complete = function()
+      return require("epitech.ignore").complete()
+    end,
+  })
+  command("EpitechUnignore", function(args)
+    require("epitech.ignore").set(args.args, false)
+  end, "Turn the Epitech rules back on for this file or project", {
+    nargs = "?",
+    complete = function()
+      return require("epitech.ignore").complete()
+    end,
+  })
 
   command("EpitechCheck", function(args)
     if args.args == "untrack" then

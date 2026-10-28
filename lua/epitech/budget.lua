@@ -182,7 +182,7 @@ end
 -- Whether buf gets a file budget: C sources always, headers only when they
 -- define functions (static inline ones).
 local function has_file_budget(buf)
-  if vim.bo[buf].filetype ~= "c" or vim.bo[buf].buftype ~= "" then
+  if vim.bo[buf].filetype ~= "c" or vim.bo[buf].buftype ~= "" or require("epitech.ignore").ignored(buf) then
     return false
   end
   return not is_header(buf) or #ts.functions(buf) > 0
@@ -256,6 +256,11 @@ end
 -- Redraws the meters of buf now.
 function M.update(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  if require("epitech.ignore").ignored(buf) then
+    vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+    vim.api.nvim_buf_clear_namespace(buf, M.depth_ns, 0, -1)
     return
   end
   update_functions(buf, config.options.budget)

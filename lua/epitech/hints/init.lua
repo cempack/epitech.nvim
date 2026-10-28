@@ -60,7 +60,8 @@ function M.refresh(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  if not active or not config.options.hints.enabled or vim.bo[buf].filetype ~= "c" then
+  if not active or not config.options.hints.enabled or vim.bo[buf].filetype ~= "c"
+    or require("epitech.ignore").ignored(buf) then
     vim.diagnostic.reset(M.ns, buf)
     return
   end

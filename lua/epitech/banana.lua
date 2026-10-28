@@ -96,6 +96,10 @@ function M.run(buf, on_done)
   if name == "" or vim.bo[buf].buftype ~= "" then
     return
   end
+  if require("epitech.ignore").ignored(buf) then
+    vim.diagnostic.reset(M.ns, buf)
+    return
+  end
   local file = vim.fn.fnamemodify(name, ":p")
   if vim.fn.filereadable(file) == 0 or not M.available() then
     return
