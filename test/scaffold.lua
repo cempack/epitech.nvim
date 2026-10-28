@@ -28,15 +28,38 @@ local c_header = function(description)
   return { "/*", "** EPITECH PROJECT, " .. year, "** demo", "** File description:", "** " .. description, "*/" }
 end
 
-h.assert_equal(read("Makefile"), {
+local function makefile_tail(unit_tests)
+  return vim.list_extend(vim.deepcopy(unit_tests), {
+    "", "tests_run: unit_tests", "\t./unit_tests; status=$$?; \\", "\t$(MAKE) --no-print-directory fclean; \\",
+    "\texit $$status", "", "clean:", "\trm -f $(OBJ)", "\trm -f $(OBJ:.o=.gcno) $(OBJ:.o=.gcda)",
+    "\trm -f *.gcno *.gcda", "", "fclean: clean", "\trm -f $(NAME)", "\trm -f unit_tests", "",
+    "re: fclean $(NAME)", "", ".PHONY: all clean fclean re unit_tests tests_run",
+  })
+end
+h.assert_equal(read("Makefile"), vim.list_extend({
   "##", "## EPITECH PROJECT, " .. year, "## demo", "## File description:", "## Makefile", "##", "",
-  "NAME = demo", "", "SRC += src/main.c", "", "TESTS_SRC += tests/test_demo.c", "", "OBJ = $(SRC:.c=.o)", "",
-  "UT_SRC = $(filter-out src/main.c, $(SRC)) $(TESTS_SRC)", "", "UT_FLAGS = --coverage -lcriterion", "",
-  "CFLAGS += -Wall -Wextra -I include", "", "all: $(NAME)", "", "$(NAME): $(OBJ)", "\t$(CC) -o $(NAME) $(OBJ)", "",
-  "clean:", "\t$(RM) $(OBJ) *.gcda *.gcno", "", "fclean: clean", "\t$(RM) $(NAME) unit_tests", "",
-  "re: fclean all", "", "tests_run:", "\t$(CC) -o unit_tests $(UT_SRC) $(CFLAGS) $(UT_FLAGS)", "\t./unit_tests", "",
-  ".PHONY: all clean fclean re tests_run",
-}, "Makefile")
+  "CC = epiclang", "", "CPPFLAGS = -I./include", "", "NAME = demo", "", "SRC = src/main.c", "", "OBJ = $(SRC:.c=.o)",
+  "", "TEST_SRC = tests/test_demo.c", "", "all: $(NAME)", "", "$(NAME): $(OBJ)", "\t$(CC) -o $(NAME) $(OBJ)", "",
+}, makefile_tail({
+  "unit_tests: fclean", "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
+  "\t$(CPPFLAGS) $(CFLAGS) -lcriterion --coverage",
+})), "Makefile")
+-- A library (libmy.a) is built with ar and its tests link against it; cc
+-- and cflags come from the options.
+require("epitech.config").setup({ scaffold = { cc = "gcc", cflags = "-Wall -Wextra" } })
+local library = require("epitech.scaffold").makefile("libmy.a", { "src/my.c", "src/my_putstr.c" }, { "tests/test_my.c" })
+h.assert_equal(vim.list_slice(library, 8, #library), vim.list_extend({
+  "CC = gcc", "", "CPPFLAGS = -I./include", "", "CFLAGS = -Wall -Wextra", "", "NAME = libmy.a", "",
+  "SRC = src/my.c \\", "\t\tsrc/my_putstr.c", "", "OBJ = $(SRC:.c=.o)", "", "TEST_SRC = tests/test_my.c", "",
+  "all: $(NAME)", "", "$(NAME): $(OBJ)", "\tar rc $(NAME) $(OBJ)", "",
+}, makefile_tail({
+  "unit_tests: CFLAGS += --coverage", "unit_tests: fclean $(NAME)",
+  "\t$(CC) -o unit_tests $(TEST_SRC) $(CPPFLAGS) -L. -lmy -lcriterion \\", "\t--coverage",
+})), "library Makefile")
+h.assert_equal(vim.tbl_keys(require("epitech.scaffold").templates("libmy.a")), vim.tbl_keys({
+  Makefile = 1, ["include/my.h"] = 1, ["src/my.c"] = 1, ["tests/test_my.c"] = 1, [".gitignore"] = 1,
+}), "library files")
+require("epitech.config").setup()
 h.assert_equal(read("include/demo.h"), vim.list_extend(c_header("Declarations for demo"), {
   "", "#ifndef DEMO_H_", "    #define DEMO_H_", "", "/* epitech.nvim: prototypes (:EpitechSyncHeader) */",
   "/* epitech.nvim: end of prototypes */", "", "#endif",
@@ -69,7 +92,7 @@ vim.fn.writefile({ "NAME = changed" }, dir .. "/Makefile")
 vim.cmd("EpitechNew demo")
 h.assert_equal(read("Makefile"), { "NAME = changed" }, "refused when a Makefile exists")
 vim.cmd("EpitechNew! demo")
-h.assert_equal(read("Makefile")[8], "NAME = demo", ":EpitechNew! overwrites")
+h.assert_equal(read("Makefile")[12], "NAME = demo", ":EpitechNew! overwrites")
 
 -- :EpitechNewFile: header, SRC line, opened. A header gets a guard.
 vim.system({ "git", "init", "-q" }, { cwd = dir }):wait()
@@ -79,15 +102,15 @@ end
 vim.cmd("EpitechNewFile src/parse_args.c")
 h.assert_equal(vim.api.nvim_buf_get_name(0), dir .. "/src/parse_args.c", "new file opened")
 h.assert_equal(read("src/parse_args.c"), c_header("Argument parsing"), "new file header")
-h.assert_equal(vim.list_slice(read("Makefile"), 10, 11), { "SRC += src/main.c", "SRC += src/parse_args.c" },
-  "added to SRC")
+h.assert_equal(vim.list_slice(read("Makefile"), 14, 15), { "SRC = src/main.c \\", "\t\tsrc/parse_args.c" },
+  "added to the SRC list")
 vim.cmd("EpitechNewFile include/parse_args.h")
 h.assert_equal(read("include/parse_args.h"), vim.list_extend(c_header("Argument parsing"), {
   "", "#ifndef PARSE_ARGS_H_", "    #define PARSE_ARGS_H_", "", "#endif",
 }), "new header with a guard")
 vim.cmd("EpitechNewFile tests/test_parse_args.c")
-h.assert_equal(vim.list_slice(read("Makefile"), 13, 14), { "TESTS_SRC += tests/test_demo.c",
-  "TESTS_SRC += tests/test_parse_args.c" }, "tests go to TESTS_SRC")
+h.assert_equal(vim.list_slice(read("Makefile"), 19, 20), { "TEST_SRC = tests/test_demo.c \\",
+  "\t\ttests/test_parse_args.c" }, "tests go to TEST_SRC")
 h.assert_equal(#vim.tbl_filter(function(line)
   return line:find("parse_args.h", 1, true) ~= nil
 end, read("Makefile")), 0, "a header isn't added to the Makefile")
@@ -100,27 +123,36 @@ local function layout(lines)
   return root, cleanup
 end
 local root, cleanup = layout({ "SRC = src/a.c \\", "\tsrc/b.c \\", "\tsrc/c.c", "", "OBJ = $(SRC:.c=.o)" })
-h.assert_equal(makefile.add_source(root, "src/d.c"), true, "add after a continued list")
-h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c \\", "\tsrc/b.c \\", "\tsrc/c.c",
-  "SRC += src/d.c", "", "OBJ = $(SRC:.c=.o)" }, "added after the last continuation line")
+h.assert_equal(makefile.add_source(root, "src/d.c"), true, "add to a continued list")
+h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c \\", "\tsrc/b.c \\", "\tsrc/c.c \\",
+  "\tsrc/d.c", "", "OBJ = $(SRC:.c=.o)" }, "one more line of the list, same indentation")
 h.assert_equal(makefile.add_source(root, "src/b.c"), true, "already listed")
 h.assert_equal(#vim.fn.readfile(root .. "/Makefile"), 6, "not added twice")
 h.assert_equal(makefile.remove_source(root, "src/b.c"), true, "remove from a continued list")
-h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c \\", "\tsrc/c.c", "SRC += src/d.c", "",
+h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c \\", "\tsrc/c.c \\", "\tsrc/d.c", "",
   "OBJ = $(SRC:.c=.o)" }, "word removed")
-makefile.remove_source(root, "src/c.c")
-h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c", "SRC += src/d.c", "", "OBJ = $(SRC:.c=.o)" },
-  "last continuation line removed")
 makefile.remove_source(root, "src/d.c")
+makefile.remove_source(root, "src/c.c")
 h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c", "", "OBJ = $(SRC:.c=.o)" },
-  "SRC += line removed")
+  "last continuation lines removed")
+makefile.add_source(root, "src/e.c")
+h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC = src/a.c \\", "\t\tsrc/e.c", "",
+  "OBJ = $(SRC:.c=.o)" }, "a one-file list grows into a continued one")
+cleanup()
+
+root, cleanup = layout({ "SRC += src/a.c", "NAME = x" })
+makefile.add_source(root, "src/b.c")
+h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC += src/a.c", "SRC += src/b.c", "NAME = x" },
+  "SRC += lines get one more")
+makefile.remove_source(root, "src/b.c")
+h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC += src/a.c", "NAME = x" }, "SRC += line removed")
 h.assert_equal(makefile.remove_source(root, "src/zz.c"), false, "nothing to remove")
 cleanup()
 
 root, cleanup = layout({ "SRC := src/a.c src/b.c", "NAME = x" })
 makefile.add_source(root, "src/c.c")
 makefile.remove_source(root, "src/a.c")
-h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC := src/b.c", "SRC += src/c.c", "NAME = x" },
+h.assert_equal(vim.fn.readfile(root .. "/Makefile"), { "SRC := src/b.c \\", "\t\tsrc/c.c", "NAME = x" },
   ":= list on one line")
 cleanup()
 

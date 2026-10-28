@@ -94,11 +94,18 @@ vim.api.nvim_buf_set_lines(buf, 7, -1, false, {
   "TESTS_SRC += tests/test_a.c \\", "\ttests/test_b.c \\", "\ttests/test_c.c", "OBJ = $(SRC:.c=.o)  ",
   "LIBS = $(wildcard lib/*.c) \\", "\tlib/x.c",
 })
+h.assert_equal(#h.code_actions(buf, h.rows(7, 9)), 0, "a short backslash-continued list is left as it is")
+vim.api.nvim_buf_set_lines(buf, 8, 9, false, { "\ttests/test_b.c tests/test_with_a_very_long_name_for_this_line.c "
+  .. "tests/test_d.c \\" })
 actions, client = h.code_actions(buf, h.rows(8))
 h.apply_action(actions[1], client)
-h.assert_equal(vim.api.nvim_buf_get_lines(buf, 7, 11, false), {
-  "TESTS_SRC += tests/test_a.c", "TESTS_SRC += tests/test_b.c", "TESTS_SRC += tests/test_c.c", "OBJ = $(SRC:.c=.o)  ",
-}, "a backslash-continued assignment is converted")
+h.assert_equal(vim.api.nvim_buf_get_lines(buf, 7, 13, false), {
+  "TESTS_SRC += tests/test_a.c", "TESTS_SRC += tests/test_b.c",
+  "TESTS_SRC += tests/test_with_a_very_long_name_for_this_line.c", "TESTS_SRC += tests/test_d.c",
+  "TESTS_SRC += tests/test_c.c", "OBJ = $(SRC:.c=.o)  ",
+}, "a continued list with a line over 80 columns is split")
+vim.api.nvim_buf_set_lines(buf, 7, 12, false, { "TESTS_SRC += tests/test_a.c \\", "\ttests/test_b.c \\",
+  "\ttests/test_c.c" })
 actions, client = h.code_actions(buf, h.rows(10))
 h.assert_equal(vim.tbl_map(function(action)
   return action.title

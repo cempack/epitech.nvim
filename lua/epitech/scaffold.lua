@@ -14,56 +14,101 @@ local function c_header(name, description)
   return header.header_lines(header.comment_styles.c, name, description, os.date("%Y"))
 end
 
--- The files of a new project: { [relative path] = lines }.
-function M.templates(name)
-  local year = os.date("%Y")
-  local guard = header.guard_name(name .. ".h")
-  local sync = require("epitech.header_sync")
-  local files = {}
+-- A Makefile list: `NAME = first \` then one value per line, two tabs in.
+local function list(variable, values)
+  local lines = {}
+  for i, value in ipairs(values) do
+    local text = i == 1 and (variable .. " = " .. value) or ("\t\t" .. value)
+    lines[#lines + 1] = i < #values and text .. " \\" or text
+  end
+  return lines
+end
 
-  files["Makefile"] = {
+-- The Makefile of a new project. A name ending in .a (libmy.a) builds a
+-- library with ar and links the tests against it; any other name builds a
+-- program, whose tests take every source but main.c.
+function M.makefile(name, sources, tests)
+  local options = config.options.scaffold
+  local library = name:match("^lib(.+)%.a$")
+  local lines = {
     "##",
-    "## EPITECH PROJECT, " .. year,
+    "## EPITECH PROJECT, " .. os.date("%Y"),
     "## " .. name,
     "## File description:",
     "## Makefile",
     "##",
     "",
-    "NAME = " .. name,
+    "CC = " .. options.cc,
     "",
-    "SRC += src/main.c",
+    "CPPFLAGS = -I./include",
     "",
-    "TESTS_SRC += tests/test_" .. name .. ".c",
+  }
+  if options.cflags ~= "" then
+    vim.list_extend(lines, { "CFLAGS = " .. options.cflags, "" })
+  end
+  vim.list_extend(lines, { "NAME = " .. name, "" })
+  vim.list_extend(lines, list("SRC", sources))
+  vim.list_extend(lines, { "", "OBJ = $(SRC:.c=.o)", "" })
+  vim.list_extend(lines, list("TEST_SRC", tests))
+  vim.list_extend(lines, { "", "all: $(NAME)", "", "$(NAME): $(OBJ)" })
+  if library then
+    vim.list_extend(lines, {
+      "\tar rc $(NAME) $(OBJ)",
+      "",
+      "unit_tests: CFLAGS += --coverage",
+      "unit_tests: fclean $(NAME)",
+      "\t$(CC) -o unit_tests $(TEST_SRC) $(CPPFLAGS) -L. -l" .. library .. " -lcriterion \\",
+      "\t--coverage",
+    })
+  else
+    vim.list_extend(lines, {
+      "\t$(CC) -o $(NAME) $(OBJ)",
+      "",
+      "unit_tests: fclean",
+      "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
+      "\t$(CPPFLAGS) $(CFLAGS) -lcriterion --coverage",
+    })
+  end
+  vim.list_extend(lines, {
     "",
-    "OBJ = $(SRC:.c=.o)",
-    "",
-    "UT_SRC = $(filter-out src/main.c, $(SRC)) $(TESTS_SRC)",
-    "",
-    "UT_FLAGS = --coverage -lcriterion",
-    "",
-    "CFLAGS += " .. config.options.scaffold.cflags .. " -I include",
-    "",
-    "all: $(NAME)",
-    "",
-    "$(NAME): $(OBJ)",
-    "\t$(CC) -o $(NAME) $(OBJ)",
+    "tests_run: unit_tests",
+    "\t./unit_tests; status=$$?; \\",
+    "\t$(MAKE) --no-print-directory fclean; \\",
+    "\texit $$status",
     "",
     "clean:",
-    "\t$(RM) $(OBJ) *.gcda *.gcno",
+    "\trm -f $(OBJ)",
+    "\trm -f $(OBJ:.o=.gcno) $(OBJ:.o=.gcda)",
+    "\trm -f *.gcno *.gcda",
     "",
     "fclean: clean",
-    "\t$(RM) $(NAME) unit_tests",
+    "\trm -f $(NAME)",
+    "\trm -f unit_tests",
     "",
-    "re: fclean all",
+    "re: fclean $(NAME)",
     "",
-    "tests_run:",
-    "\t$(CC) -o unit_tests $(UT_SRC) $(CFLAGS) $(UT_FLAGS)",
-    "\t./unit_tests",
-    "",
-    ".PHONY: all clean fclean re tests_run",
-  }
+    ".PHONY: all clean fclean re unit_tests tests_run",
+  })
+  return lines
+end
 
-  files["include/" .. name .. ".h"] = vim.list_extend(c_header(name, "Declarations for " .. name), {
+-- The base of a project's file names: libmy.a gives my, my_ls gives my_ls.
+function M.base(name)
+  return name:match("^lib(.+)%.a$") or name
+end
+
+-- The files of a new project: { [relative path] = lines }.
+function M.templates(name)
+  local base = M.base(name)
+  local guard = header.guard_name(base .. ".h")
+  local sync = require("epitech.header_sync")
+  local files = {}
+  local library = base ~= name
+  local first_source = library and ("src/" .. base .. ".c") or "src/main.c"
+
+  files["Makefile"] = M.makefile(name, { first_source }, { "tests/test_" .. base .. ".c" })
+
+  files["include/" .. base .. ".h"] = vim.list_extend(c_header(name, "Declarations for " .. name), {
     "",
     "#ifndef " .. guard,
     "    #define " .. guard,
@@ -74,22 +119,26 @@ function M.templates(name)
     "#endif",
   })
 
-  files["src/main.c"] = vim.list_extend(c_header(name, "Entry point"), {
-    "",
-    '#include "' .. name .. '.h"',
-    "",
-    "int main(int ac, char **av)",
-    "{",
-    "    return 0;",
-    "}",
-  })
+  if library then
+    files[first_source] = vim.list_extend(c_header(name, base), { "", '#include "' .. base .. '.h"' })
+  else
+    files["src/main.c"] = vim.list_extend(c_header(name, "Entry point"), {
+      "",
+      '#include "' .. base .. '.h"',
+      "",
+      "int main(int ac, char **av)",
+      "{",
+      "    return 0;",
+      "}",
+    })
+  end
 
-  files["tests/test_" .. name .. ".c"] = vim.list_extend(c_header(name, "Unit tests"), {
+  files["tests/test_" .. base .. ".c"] = vim.list_extend(c_header(name, "Unit tests"), {
     "",
     "#include <criterion/criterion.h>",
-    '#include "' .. name .. '.h"',
+    '#include "' .. base .. '.h"',
     "",
-    "Test(" .. name:gsub("[^%w_]", "_") .. ", placeholder)",
+    "Test(" .. base:gsub("[^%w_]", "_") .. ", placeholder)",
     "{",
     "    cr_assert_eq(1, 1);",
     "}",
@@ -118,7 +167,7 @@ function M.new(name, dir, force)
   end
   table.sort(written)
   local state = project.state(dir)
-  state.header = "include/" .. name .. ".h"
+  state.header = "include/" .. M.base(name) .. ".h"
   state.header_dirs = state.header_dirs or { "src" }
   project.save_state(dir, state)
   util.notify(("Created %s: %s"):format(name, table.concat(written, ", ")))
@@ -155,9 +204,9 @@ function M.new_file(path, root, on_done)
     vim.fn.writefile(lines, full)
     if extension == "c" then
       local variable = "SRC"
-      if vim.startswith(relative, "tests/")
-        and table.concat(util.read_lines(root .. "/Makefile"), "\n"):match("\nTESTS_SRC%s*[+:]?=") then
-        variable = "TESTS_SRC"
+      if vim.startswith(relative, "tests/") then
+        local text = "\n" .. table.concat(util.read_lines(root .. "/Makefile"), "\n")
+        variable = text:match("\n(TESTS?_SRC)%s*[+:]?=") or variable
       end
       makefile.add_source(root, relative, variable)
     end

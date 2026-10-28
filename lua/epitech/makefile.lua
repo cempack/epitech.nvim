@@ -1,6 +1,5 @@
--- Edits to the project's Makefile: adding and removing source files.
--- Generated lines never use backslash continuations (C-G6 may cover
--- Makefiles too).
+-- Edits to the project's Makefile: adding and removing source files, in
+-- the Makefile's own layout (a `SRC = a.c \` list or `SRC += a.c` lines).
 local util = require("epitech.util")
 
 local M = {}
@@ -36,8 +35,9 @@ local function assignments(lines, variable)
   return result
 end
 
--- Adds `variable += path` after the last assignment to variable (SRC by
--- default) in root's Makefile. Changes nothing when the Makefile has no
+-- Adds path to the last assignment to variable (SRC by default) in root's
+-- Makefile: as one more line of a `SRC = a.c \` list (same indentation),
+-- or as `SRC += path` after a single `SRC += a.c` line. Changes nothing when the Makefile has no
 -- such variable or builds it with $(wildcard …), and tells the user what to
 -- add instead. Returns whether the path is in the variable afterwards.
 function M.add_source(root, path, variable)
@@ -61,9 +61,19 @@ function M.add_source(root, path, variable)
   end
   util.edit_file(makefile, function(buf)
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    local last = assignments(lines, variable)
-    last = last[#last].last
-    vim.api.nvim_buf_set_lines(buf, last, last, false, { line })
+    local all = assignments(lines, variable)
+    local entry = all[#all]
+    local operator = lines[entry.first]:match("^" .. variable .. "%s*([+:]?=)")
+    if operator == "+=" and entry.first == entry.last then
+      vim.api.nvim_buf_set_lines(buf, entry.last, entry.last, false, { line })
+    elseif #entry.words == 0 then
+      vim.api.nvim_buf_set_lines(buf, entry.first - 1, entry.first, false,
+        { lines[entry.first]:gsub("%s*$", "") .. " " .. path })
+    else
+      local indent = entry.last > entry.first and lines[entry.last]:match("^%s*") or "\t\t"
+      vim.api.nvim_buf_set_lines(buf, entry.last - 1, entry.last, false,
+        { (lines[entry.last]:gsub("%s*$", "")) .. " \\", indent .. path })
+    end
   end)
   return true
 end

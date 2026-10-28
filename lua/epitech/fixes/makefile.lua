@@ -1,6 +1,7 @@
--- Makefile fixes: add the Epitech header (C-G1), split a long or
--- backslash-continued SRC assignment into one file per line (C-F3, C-G6),
--- remove trailing spaces (C-G7).
+-- Makefile fixes: add the Epitech header (C-G1), split a SRC assignment
+-- with a line over 80 columns into one file per line (C-F3), remove
+-- trailing spaces (C-G7). A `SRC = a.c \` list with short lines is fine:
+-- Banana doesn't read Makefiles (§10), and Elliot's own template uses one.
 local config = require("epitech.config")
 local fixes = require("epitech.fixes")
 local header = require("epitech.header")
@@ -30,7 +31,7 @@ function M.source_assignment(lines, row)
   if last < row then
     return nil
   end
-  local words, long = {}, last > first
+  local words, long = {}, false
   for _, value in ipairs(values) do
     for word in value:gsub("\\%s*$", ""):gmatch("%S+") do
       if word:find("[$()]") then

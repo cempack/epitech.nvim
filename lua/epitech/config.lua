@@ -37,7 +37,7 @@ M.defaults = {
   fixes = { enabled = true },
   header_sync = { group_by_file = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
-  scaffold = { cflags = "-Wall -Wextra" },
+  scaffold = { cc = "epiclang", cflags = "" },
 }
 
 -- Lists replace the default instead of being merged into it; the value says

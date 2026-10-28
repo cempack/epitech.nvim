@@ -266,8 +266,8 @@ empty lines at the start or more than one at the end (C-G8), and a missing
 final newline (C-A3). These aren't guesses, so they use the rule's own
 severity. Header detection accepts both `##` and the PDF's `###` inner
 lines. Code actions: **Add the Epitech header**, **Split into SRC += lines**
-for a long or backslash-continued `SRC` assignment (the first line keeps its
-`=`), and **Remove trailing spaces**.
+for a `SRC` assignment with a line over 80 columns (the first line keeps its
+`=`; a list of short `\` lines is fine), and **Remove trailing spaces**.
 
 ```lua
 makefile = { enabled = true, tab_width = 8 },
@@ -366,21 +366,28 @@ header_sync = { group_by_file = true }, -- false: no /* file */ lines
 ### New projects and files
 
 `:EpitechNew [name]` creates a project in the current directory (named after
-it by default): a `Makefile` with `all`, `clean`, `fclean`, `re` and a
-Criterion `tests_run`, `include/<name>.h` with its guard and an empty
+it by default): a `Makefile`, `include/<name>.h` with its guard and an empty
 prototypes block, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
-build products. Everything has its Epitech header and passes the formatter
-and the Makefile checks. It refuses when a `Makefile` exists;
-`:EpitechNew!` overwrites.
+build products. Everything has its Epitech header and passes the formatter.
+It refuses when a `Makefile` exists; `:EpitechNew!` overwrites.
+
+The Makefile sets `CC = epiclang` and `CPPFLAGS = -I./include`, lists the
+files as `SRC = src/main.c \` with one file per line, and has `all`,
+`clean`, `fclean`, `re`, `unit_tests` (built with `--coverage` and
+Criterion) and `tests_run` (runs them, then `fclean`, keeping the tests'
+exit code). A name ending in `.a` (`:EpitechNew libmy.a`) makes a library
+instead: built with `ar rc`, with `include/my.h`, `src/my.c` and tests
+linked with `-L. -lmy`.
 
 `:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
-(asking for the description), adds `SRC += src/parse_args.c` to the Makefile
-(`TESTS_SRC` for files under `tests/`) and opens it. A `.h` gets an include
-guard instead. When `SRC` is built with `$(wildcard …)` or doesn't exist,
-the Makefile is left alone and you're told what to add.
+(asking for the description), adds it to the Makefile and opens it: one more
+line of the `SRC = … \` list (`TEST_SRC` for files under `tests/`), or a
+`SRC += …` line when the Makefile uses those. A `.h` gets an include guard
+instead. When `SRC` is built with `$(wildcard …)` or doesn't exist, the
+Makefile is left alone and you're told what to add.
 
 ```lua
-scaffold = { cflags = "-Wall -Wextra" },
+scaffold = { cc = "epiclang", cflags = "" }, -- cflags: a CFLAGS line when set
 ```
 
 ### Extracting a function
@@ -590,7 +597,7 @@ require("epitech").setup({
   fixes = { enabled = true },
   header_sync = { group_by_file = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
-  scaffold = { cflags = "-Wall -Wextra" },
+  scaffold = { cc = "epiclang", cflags = "" },
 })
 ```
 
