@@ -36,7 +36,7 @@ end
 
 -- Every action the registered fixes offer for range in buf.
 function M.actions(buf, range, context)
-  if not require("epitech.config").options.fixes.enabled or require("epitech.ignore").ignored(buf) then
+  if not require("epitech.config").options.fixes.enabled then
     return {}
   end
   local result = {}

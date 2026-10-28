@@ -1,6 +1,6 @@
--- :EpitechIgnore and :EpitechUnignore: turn the plugin off for a file or a
--- whole project (a school project in another language, a lib from
--- elsewhere). The choice lives in the project state, outside the
+-- :EpitechIgnore and :EpitechUnignore: silence the plugin's warnings for a
+-- file or a whole project (Banana diagnostics, hints, meters, the check and
+-- the push guard). Formatting and the code-action fixes still apply. The choice lives in the project state, outside the
 -- repository (C-O1): nothing is written into the project.
 local project = require("epitech.project")
 local util = require("epitech.util")
@@ -100,7 +100,7 @@ function M.set(scope, ignore, buf)
   local message
   if scope == "project" then
     tbl.ignored = ignore or nil
-    message = (ignore and "Epitech rules off for the project " or "Epitech rules back on for the project ")
+    message = (ignore and "Epitech warnings off for the project " or "Epitech warnings back on for the project ")
       .. vim.fs.basename(root)
   elseif scope == "file" then
     local relative = name ~= "" and util.relative(name, root)
@@ -115,7 +115,7 @@ function M.set(scope, ignore, buf)
       table.sort(files)
     end
     tbl.ignored_files = #files > 0 and files or nil
-    message = (ignore and "Epitech rules off for " or "Epitech rules back on for ") .. relative
+    message = (ignore and "Epitech warnings off for " or "Epitech warnings back on for ") .. relative
     if not ignore and tbl.ignored then
       message = message .. " (the whole project is still ignored: :EpitechUnignore project)"
     end

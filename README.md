@@ -95,8 +95,8 @@ diagnostics, meters, hints and fixes below are for.
 | `<leader>cN`, `:EpitechNewFile [path]` | Create a source file with its header, add it to `SRC` |
 | `:'<,'>EpitechExtract [name]` | Move the selected statements into a new function |
 | `:'<,'>EpitechMoveTo <path>` | Move the selected functions to another file |
-| `:EpitechIgnore [file\|project]` | Turn the Epitech rules off for this file (default) or the whole project |
-| `:EpitechUnignore [file\|project]` | Turn them back on |
+| `:EpitechIgnore [file\|project]` | Silence the warnings for this file (default) or the whole project |
+| `:EpitechUnignore [file\|project]` | Show them again |
 | `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
 | `:EpitechHooks [remove]` | Install (or remove) the pre-push hook |
 | `:EpitechLazygit [remove]` | Add the check to lazygit on `B` (or remove it) |
@@ -511,12 +511,12 @@ With LuaSnip:
 
 ### Ignoring a file or a project
 
-`:EpitechIgnore` turns the plugin off for the current file, and
-`:EpitechIgnore project` for the whole project (a project in another
-language, code you didn't write). There are then no Banana diagnostics,
-hints, meters, winbar or fixes, the formatter leaves the file alone, and
-the project check and the push guard skip it. `:EpitechUnignore [file|project]`
-turns it back on. The choice is remembered in Neovim's data directory, not
+`:EpitechIgnore` silences the plugin's warnings for the current file, and
+`:EpitechIgnore project` for the whole project: no Banana diagnostics,
+hints, meters or winbar, and the project check and the push guard skip it.
+The style still applies: the formatter still formats on save, and the
+code-action fixes stay available. `:EpitechUnignore [file|project]` brings
+the warnings back. The choice is remembered in Neovim's data directory, not
 in your repository.
 
 ### Project check

@@ -41,9 +41,8 @@ function M.formatter(opts)
       "-",
     },
     stdin = true,
-    condition = function(_, ctx)
-      return not require("epitech.ignore").ignored(ctx and ctx.buf or 0)
-        and vim.fn.filereadable(vim_config) == 1
+    condition = function()
+      return vim.fn.filereadable(vim_config) == 1
         and vim.fn.filereadable(format.style_file) == 1
         and vim.fn.executable("clang-format") == 1
     end,
@@ -128,7 +127,7 @@ function M.setup(opts)
 
   command("EpitechIgnore", function(args)
     require("epitech.ignore").set(args.args, true)
-  end, "Turn the Epitech rules off for this file or project", {
+  end, "Silence the Epitech warnings for this file or project", {
     nargs = "?",
     complete = function()
       return require("epitech.ignore").complete()
@@ -136,7 +135,7 @@ function M.setup(opts)
   })
   command("EpitechUnignore", function(args)
     require("epitech.ignore").set(args.args, false)
-  end, "Turn the Epitech rules back on for this file or project", {
+  end, "Show the Epitech warnings again for this file or project", {
     nargs = "?",
     complete = function()
       return require("epitech.ignore").complete()

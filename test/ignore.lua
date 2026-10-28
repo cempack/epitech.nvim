@@ -35,7 +35,8 @@ local function shown(buf)
   }
 end
 local on = { hints = true, meter = true, actions = true }
-local off = { hints = false, meter = false, actions = false }
+-- Ignored: no warnings, but the fixes (and the formatter) still apply.
+local off = { hints = false, meter = false, actions = true }
 h.assert_equal(shown(a), on, "a.c checked at first")
 
 local function checked_paths()
@@ -57,13 +58,15 @@ h.assert_equal(checked_paths(), { ["src/a.c"] = true, ["src/b.c"] = true }, "the
 -- :EpitechIgnore: this file only.
 vim.api.nvim_set_current_buf(a)
 vim.cmd("EpitechIgnore")
-h.assert_equal(notices[#notices], "Epitech rules off for src/a.c", "the user is told")
-h.assert_equal(shown(a), off, "a.c: no hints, meters or fixes")
+h.assert_equal(notices[#notices], "Epitech warnings off for src/a.c", "the user is told")
+h.assert_equal(shown(a), off, "a.c: no hints or meters, fixes still offered")
 h.assert_equal(shown(b), on, "b.c still checked")
 h.assert_equal(project.state(root), { header_synced = { "get_a" }, ignored_files = { "src/a.c" } },
   "remembered in the project state, which keeps its other keys")
 h.assert_equal(checked_paths(), { ["src/b.c"] = true }, "the check skips a.c")
-h.assert_equal(epitech.formatter().condition(nil, { buf = a }), false, "the formatter leaves a.c alone")
+vim.api.nvim_buf_set_lines(a, 2, 3, false, { "    return    4096 ;" })
+require("epitech.format").format_buffer(a)
+h.assert_equal(vim.api.nvim_buf_get_lines(a, 0, -1, false), c_file("get_a"), "the formatter still runs on a.c")
 h.with_fake_epiclang({ root .. "/src/a.c:3:5: warning: [Banana] [Major] multiple statements on the same line (C-L1)" },
   function(calls)
     require("epitech.banana").run(a)
