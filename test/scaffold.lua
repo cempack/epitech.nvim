@@ -61,8 +61,7 @@ h.assert_equal(vim.tbl_keys(require("epitech.scaffold").templates("libmy.a")), v
 }), "library files")
 require("epitech.config").setup()
 h.assert_equal(read("include/demo.h"), vim.list_extend(c_header("Declarations for demo"), {
-  "", "#ifndef DEMO_H_", "    #define DEMO_H_", "", "/* epitech.nvim: prototypes (:EpitechSyncHeader) */",
-  "/* epitech.nvim: end of prototypes */", "", "#endif",
+  "", "#ifndef DEMO_H_", "    #define DEMO_H_", "", "#endif",
 }), "project header")
 h.assert_equal(read("src/main.c"), vim.list_extend(c_header("Entry point"), {
   "", '#include "../include/demo.h"', "", "int main(int ac, char **av)", "{", "    return 0;", "}",

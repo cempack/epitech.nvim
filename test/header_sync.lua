@@ -46,13 +46,11 @@ end
 h.assert_equal(run(), "1 added · 0 changed · 0 removed", "first run: parse_args adopted, run added")
 h.assert_equal(vim.fn.readfile(root .. "/include/demo.h"), {
   "#ifndef DEMO_H_", "    #define DEMO_H_", "", "typedef struct x_s {", "    int a;", "} x_t;", "",
-  "int old_name(void);", "",
-  "/* epitech.nvim: prototypes (:EpitechSyncHeader) */",
-  "/* src/io/run.c */", "int run(char const *path, int flags);",
-  "/* src/parse_args.c */", "int parse_args(int ac, char **av);",
-  "/* epitech.nvim: end of prototypes */", "", "#endif",
-}, "block inside the guard; adopted prototype moved; static, main and lib/ left out; other declarations kept")
+  "int old_name(void);", "int parse_args(int ac, char **av);", "int run(char const *path, int flags);", "", "#endif",
+}, "no markers; run added after the last synced prototype; static, main and lib/ left out; old_name, which the"
+  .. " sync never wrote, kept")
 h.assert_equal(project.state(root).header_dirs, { "src" }, "directories remembered")
+h.assert_equal(project.state(root).header_synced, { "parse_args", "run" }, "synced prototypes remembered")
 h.assert_equal(notices[#notices], "include/demo.h: 1 added · 0 changed · 0 removed", "the user is told")
 
 -- A second run with no changes changes nothing.
@@ -61,14 +59,20 @@ h.assert_equal(run(), "0 added · 0 changed · 0 removed", "second run")
 h.assert_equal(vim.fn.readfile(root .. "/include/demo.h"), before, "header unchanged")
 h.assert_equal(asked, 1, "asked only once")
 
--- A rename: one removed, one added. A new signature: one changed.
+-- A rename: the synced prototype goes, the new one comes. A prototype the
+-- user wrote for a function that doesn't exist yet stays.
 vim.fn.writefile({ "int run_file(char const *path,", "    int flags)", "{", "    return flags + (path != 0);", "}" },
   root .. "/src/io/run.c")
 h.assert_equal(run(), "1 added · 0 changed · 1 removed", "rename")
+h.assert_equal(vim.list_slice(vim.fn.readfile(root .. "/include/demo.h"), 8, 10), {
+  "int old_name(void);", "int parse_args(int ac, char **av);", "int run_file(char const *path, int flags);",
+}, "old_name kept, run replaced by run_file")
 local buf = h.buffer(root .. "/src/parse_args.c", {
   "int parse_args(int ac, char const **av)", "{", "    return ac + (av != 0);", "}",
 })
 h.assert_equal(run(), "0 added · 1 changed · 0 removed", "changed signature (from the unsaved buffer)")
+h.assert_equal(vim.fn.readfile(root .. "/include/demo.h")[9], "int parse_args(int ac, char const **av);",
+  "changed where it is")
 vim.api.nvim_buf_delete(buf, { force = true })
 
 -- A header open in a buffer is edited there, so undo works.
@@ -77,10 +81,10 @@ vim.fn.bufload(header_buf)
 vim.fn.writefile({ "int parse_args(int ac, char **av)", "{", "    return ac + (av != 0);", "}", "",
   "int count_args(int ac)", "{", "    return ac;", "}" }, root .. "/src/parse_args.c")
 h.assert_equal(run(), "1 added · 1 changed · 0 removed", "new function")
-h.assert_equal(vim.api.nvim_buf_get_lines(header_buf, 12, 16, false), {
-  "/* src/parse_args.c */", "int parse_args(int ac, char **av);", "int count_args(int ac);",
-  "/* epitech.nvim: end of prototypes */",
-}, "functions keep their order in the file")
+h.assert_equal(vim.api.nvim_buf_get_lines(header_buf, 7, 11, false), {
+  "int old_name(void);", "int parse_args(int ac, char **av);", "int run_file(char const *path, int flags);",
+  "int count_args(int ac);",
+}, "new prototypes after the last synced one")
 h.assert_equal(vim.bo[header_buf].modified, true, "the loaded buffer was edited")
 
 -- Long prototypes are wrapped by the formatter.
@@ -95,10 +99,20 @@ for _, line in ipairs(vim.api.nvim_buf_get_lines(header_buf, 0, -1, false)) do
 end
 h.assert_equal(run(), "0 added · 0 changed · 0 removed", "a wrapped prototype counts as unchanged")
 
--- Without group_by_file there are no group comments.
-config.setup({ header_sync = { group_by_file = false } })
-h.assert_equal(sync.block({ { file = "src/a.c", prototypes = { { name = "f", text = "int f(void);" } } } }, false),
-  { sync.BEGIN, "int f(void);", sync.END }, "no group comments")
+-- A header from an earlier version: the markers and file comments go, the
+-- prototypes between them count as synced, a duplicate is removed.
+local old = h.buffer("/tmp/epitech_sync_markers.h", {
+  "#ifndef OLD_H_", "    #define OLD_H_", "", "int f(void);", "",
+  "/* epitech.nvim: prototypes (:EpitechSyncHeader) */", "/* src/f.c */", "int f(void);", "int gone(void);",
+  "/* epitech.nvim: end of prototypes */", "", "#endif",
+})
+local counts, owned = sync.update(old, { { file = "src/f.c", prototypes = { { name = "f", text = "int f(void);" } } } },
+  {})
+h.assert_equal(counts, { added = 0, changed = 0, removed = 1 }, "markers: gone removed")
+h.assert_equal(owned, { f = true }, "markers: f synced")
+h.assert_equal(vim.api.nvim_buf_get_lines(old, 0, -1, false), {
+  "#ifndef OLD_H_", "    #define OLD_H_", "", "int f(void);", "", "#endif",
+}, "markers removed, duplicate removed")
 
 -- A header without a guard is refused.
 local bare, cleanup_bare = h.temp_project({ ["include/bare.h"] = { "int f(void);" }, ["src/f.c"] = { "int f(void)",

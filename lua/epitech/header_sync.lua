@@ -1,8 +1,10 @@
 -- :EpitechSyncHeader keeps the project header's prototypes in step with the
--- non-static functions of the .c files that feed it (C-H1, C-A4). They live
--- in a marked block inside the include guard; the rest of the header is the
--- user's.
-local config = require("epitech.config")
+-- non-static functions of the .c files that feed it (C-H1, C-A4), without
+-- any marker in the header. A prototype is updated where it is, a new one
+-- goes after the header's last synced prototype, and only prototypes the
+-- sync wrote or adopted before (remembered in the project state, outside
+-- the repository) are removed when their function is gone: a prototype the
+-- user wrote for a function that isn't there yet stays.
 local header = require("epitech.header")
 local project = require("epitech.project")
 local ts = require("epitech.ts")
@@ -10,6 +12,8 @@ local util = require("epitech.util")
 
 local M = {}
 
+-- The markers earlier versions wrote around the prototypes: the next sync
+-- removes them, with the /* file.c */ lines between them.
 M.BEGIN = "/* epitech.nvim: prototypes (:EpitechSyncHeader) */"
 M.END = "/* epitech.nvim: end of prototypes */"
 
@@ -65,21 +69,6 @@ function M.collect(root, dirs)
   return result
 end
 
--- The lines of the block.
-function M.block(groups, group_by_file)
-  local lines = { M.BEGIN }
-  for _, group in ipairs(groups) do
-    if group_by_file then
-      lines[#lines + 1] = "/* " .. group.file .. " */"
-    end
-    for _, prototype in ipairs(group.prototypes) do
-      lines[#lines + 1] = prototype.text
-    end
-  end
-  lines[#lines + 1] = M.END
-  return lines
-end
-
 local function marker_rows(lines)
   local first, last
   for i, line in ipairs(lines) do
@@ -93,81 +82,141 @@ local function marker_rows(lines)
   return first, last
 end
 
--- Updates the header in buf from groups. Returns the counts, or nil and a
--- reason when the header has no include guard.
-function M.update(buf, groups, group_by_file)
+-- Removes the markers of earlier versions from buf; returns the names of
+-- the prototypes they held, which the sync owns.
+local function drop_markers(buf)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local src = table.concat(lines, "\n")
   local first, last = marker_rows(lines)
-  local _, _, endif = header.guard_rows(lines)
-  if not endif then
+  local owned = {}
+  if not first then
+    return owned
+  end
+  local src = table.concat(lines, "\n")
+  local tree = ts.parse_string(src)
+  for _, proto in ipairs(tree and ts.collect_prototypes(tree, src) or {}) do
+    if proto.row + 1 > first and proto.row + 1 < last then
+      owned[proto.name] = true
+    end
+  end
+  for i = last, first, -1 do
+    local line = vim.trim(lines[i])
+    if i == first or i == last or line:match("^/%*%s*[%w_./-]+%.c%s*%*/$") then
+      table.remove(lines, i)
+    end
+  end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  return owned
+end
+
+local function alone(lines, node)
+  local start_row, start_col, end_row, end_col = node:range()
+  return not lines[start_row + 1]:sub(1, start_col):match("%S") and not lines[end_row + 1]:sub(end_col + 1):match("%S")
+end
+
+-- Updates the header in buf from groups. owned is the set of names the
+-- sync wrote or adopted on earlier runs. Returns the counts and the new
+-- owned set, or nil and a reason when the header has no include guard.
+function M.update(buf, groups, owned)
+  owned = vim.deepcopy(owned or {})
+  if not select(3, header.guard_rows(vim.api.nvim_buf_get_lines(buf, 0, -1, false))) then
     return nil, "it has no include guard (:EpitechGuard adds one)"
   end
+  local migrated = false
+  for name in pairs(drop_markers(buf)) do
+    owned[name] = true
+    migrated = true
+  end
 
-  local wanted = {}
+  local wanted, order = {}, {}
   for _, group in ipairs(groups) do
     for _, prototype in ipairs(group.prototypes) do
       wanted[prototype.name] = prototype.text
+      order[#order + 1] = prototype.name
     end
   end
 
-  -- What the header declares now: in the block, and elsewhere (adopted on
-  -- the first run, duplicates later).
-  local old, in_block, stray = {}, {}, {}
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local src = table.concat(lines, "\n")
   local tree = ts.parse_string(src)
+  local counts = { added = 0, changed = 0, removed = 0 }
+  local edits, seen, new_owned = {}, {}, {}
   for _, proto in ipairs(tree and ts.collect_prototypes(tree, src) or {}) do
-    local start_row, start_col, end_row, end_col = proto.node:range()
-    local inside = first and start_row + 1 > first and end_row + 1 < last
-    if inside then
-      in_block[proto.name] = true
-      old[proto.name] = ts.text(proto.node, src)
-    elseif wanted[proto.name] then
-      old[proto.name] = old[proto.name] or ts.text(proto.node, src)
-      local alone = not lines[start_row + 1]:sub(1, start_col):match("%S")
-        and not lines[end_row + 1]:sub(end_col + 1):match("%S")
-      if alone then
-        stray[#stray + 1] = { start_row, end_row }
+    local name = proto.name
+    local text = ts.text(proto.node, src)
+    if wanted[name] then
+      new_owned[name] = true
+      if seen[name] then
+        -- the same prototype twice: the later one goes
+        if alone(lines, proto.node) then
+          edits[#edits + 1] = { node = proto.node, delete = true }
+        end
+      else
+        seen[name] = true
+        if squeeze(text) ~= squeeze(wanted[name]) then
+          counts.changed = counts.changed + 1
+          edits[#edits + 1] = { node = proto.node, text = wanted[name] }
+        end
+      end
+    elseif owned[name] and alone(lines, proto.node) then
+      counts.removed = counts.removed + 1
+      edits[#edits + 1] = { node = proto.node, delete = true }
+    end
+  end
+  local added = vim.tbl_filter(function(name)
+    return not seen[name]
+  end, order)
+  counts.added = #added
+
+  table.sort(edits, function(a, b)
+    return a.node:start() > b.node:start()
+  end)
+  for _, edit in ipairs(edits) do
+    local start_row, start_col, end_row, end_col = edit.node:range()
+    if edit.delete then
+      vim.api.nvim_buf_set_lines(buf, start_row, end_row + 1, false, {})
+      -- No double blank line where it was.
+      local around = vim.api.nvim_buf_get_lines(buf, math.max(start_row - 1, 0), start_row + 1, false)
+      if start_row > 0 and #around == 2 and around[1]:match("^%s*$") and around[2]:match("^%s*$") then
+        vim.api.nvim_buf_set_lines(buf, start_row, start_row + 1, false, {})
+      end
+    else
+      vim.api.nvim_buf_set_text(buf, start_row, start_col, end_row, end_col, { edit.text })
+    end
+  end
+
+  if #added > 0 then
+    -- After the last prototype the sync keeps, else at the end of the guard.
+    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    src = table.concat(lines, "\n")
+    tree = ts.parse_string(src)
+    local after
+    for _, proto in ipairs(tree and ts.collect_prototypes(tree, src) or {}) do
+      if new_owned[proto.name] then
+        after = select(3, proto.node:range()) + 1
       end
     end
+    local texts = vim.tbl_map(function(name)
+      return wanted[name]
+    end, added)
+    if after then
+      vim.api.nvim_buf_set_lines(buf, after, after, false, texts)
+    else
+      local _, _, endif = header.guard_rows(lines)
+      local at = endif - 1
+      while at > 0 and lines[at]:match("^%s*$") do
+        at = at - 1
+      end
+      vim.api.nvim_buf_set_lines(buf, at, endif - 1, false, vim.list_extend(vim.list_extend({ "" }, texts), { "" }))
+    end
+    for _, name in ipairs(added) do
+      new_owned[name] = true
+    end
   end
 
-  local counts = { added = 0, changed = 0, removed = 0 }
-  for name, text in pairs(wanted) do
-    if not old[name] then
-      counts.added = counts.added + 1
-    elseif squeeze(old[name]) ~= squeeze(text) then
-      counts.changed = counts.changed + 1
-    end
-  end
-  for name in pairs(in_block) do
-    if not wanted[name] then
-      counts.removed = counts.removed + 1
-    end
-  end
-  if counts.added + counts.changed + counts.removed == 0 and #stray == 0 and first then
-    return counts
-  end
-
-  local block = M.block(groups, group_by_file)
-  if first then
-    vim.api.nvim_buf_set_lines(buf, first - 1, last, false, block)
-  else
-    local at = endif - 1
-    while at > 0 and lines[at]:match("^%s*$") do
-      at = at - 1
-    end
-    vim.api.nvim_buf_set_lines(buf, at, endif - 1, false, vim.list_extend(vim.list_extend({ "" }, block), { "" }))
-  end
-  table.sort(stray, function(a, b)
-    return a[1] > b[1]
-  end)
-  for _, rows in ipairs(stray) do
-    vim.api.nvim_buf_set_lines(buf, rows[1], rows[2] + 1, false, {})
-  end
-  if vim.fn.executable("clang-format") == 1 then
+  if (#edits > 0 or #added > 0 or migrated) and vim.fn.executable("clang-format") == 1 then
     require("epitech.format").format_buffer(buf)
   end
-  return counts
+  return counts, new_owned
 end
 
 function M.summary(counts)
@@ -191,7 +240,18 @@ function M.run(root, on_done)
           local name = project.name(root)
           vim.api.nvim_buf_set_lines(buf, 0, -1, false, header.new_header(header_path, name, "Declarations for " .. name))
         end
-        counts, reason = M.update(buf, groups, config.options.header_sync.group_by_file)
+        local owned = {}
+        for _, name in ipairs(project.state(root).header_synced or {}) do
+          owned[name] = true
+        end
+        local result, detail = M.update(buf, groups, owned)
+        counts, reason = result, not result and detail or nil
+        if result then
+          local state = project.state(root)
+          state.header_synced = vim.tbl_keys(detail)
+          table.sort(state.header_synced)
+          project.save_state(root, state)
+        end
       end)
       if not ok then
         util.notify("Header sync failed: " .. tostring(err), vim.log.levels.ERROR)

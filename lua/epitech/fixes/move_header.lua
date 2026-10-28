@@ -1,8 +1,8 @@
 -- C-H1: types, struct, enum and union declarations, macros and non-static
 -- prototypes belong in a header. In a .c file they get a hint and the
--- action "Move to include/x.h": into the header's guard, before the
--- prototypes block when there is one (types come before the prototypes
--- using them), with the #include added to the .c. A static function's
+-- action "Move to include/x.h": into the header's guard, before its first
+-- prototype when there is one (types come before the prototypes using
+-- them), with the #include added to the .c. A static function's
 -- prototype can't go in a header: the action moves the definition above its
 -- first use and deletes the prototype. Non-const globals are C-G4, which
 -- Banana reports; they're left alone.
@@ -157,7 +157,7 @@ function M.static_edits(tree, buf, item)
   return edits, "Move the definition above its first use (C-H1)"
 end
 
--- Inserts lines into the header at path: before the prototypes block when
+-- Inserts lines into the header at path: before its first prototype when
 -- there is one, else before the guard's #endif.
 function M.insert(path, lines)
   util.edit_file(path, function(buf)
@@ -168,12 +168,13 @@ function M.insert(path, lines)
       current = header.new_header(path, name, "Declarations for " .. name)
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, current)
     end
+    -- Types and macros go before the first prototype that uses them.
     local at
-    for i, line in ipairs(current) do
-      if vim.trim(line) == require("epitech.header_sync").BEGIN then
-        at = i - 1
-        break
-      end
+    local src = table.concat(current, "\n")
+    local tree = ts.parse_string(src)
+    local prototypes = tree and ts.collect_prototypes(tree, src) or {}
+    if prototypes[1] then
+      at = prototypes[1].node:start()
     end
     if not at then
       local _, _, endif = header.guard_rows(current)

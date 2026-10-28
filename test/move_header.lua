@@ -13,9 +13,7 @@ local function with_header(lines)
 end
 local root, cleanup = h.temp_project({
   ["Makefile"] = { "NAME = demo" },
-  ["include/point.h"] = { "#ifndef POINT_H_", "    #define POINT_H_", "",
-    "/* epitech.nvim: prototypes (:EpitechSyncHeader) */", "int other(void);", "/* epitech.nvim: end of prototypes */",
-    "", "#endif" },
+  ["include/point.h"] = { "#ifndef POINT_H_", "    #define POINT_H_", "", "int other(void);", "", "#endif" },
   ["src/point.c"] = with_header({
     "#include <stdlib.h>", "",
     "#define ORIGIN 0", "",
@@ -80,15 +78,13 @@ h.assert_equal(vim.fn.readfile(root .. "/include/point.h"), {
   "#ifndef POINT_H_", "    #define POINT_H_", "",
   "typedef struct point_s {", "    int x;", "    int y;", "} point_t;", "",
   "    #define ORIGIN 0", "",
-  "/* epitech.nvim: prototypes (:EpitechSyncHeader) */", "int other(void);", "/* epitech.nvim: end of prototypes */",
-  "", "#endif",
-}, "typedef and macro inside the guard, before the prototypes block, the macro indented for C-G3")
+  "int other(void);", "", "#endif",
+}, "typedef and macro inside the guard, before the first prototype, the macro indented for C-G3")
 
 run("int sum_point(point_t const *point);")
 h.assert_equal(vim.list_slice(vim.fn.readfile(root .. "/include/point.h"), 9, 13), {
-  "    #define ORIGIN 0", "", "int sum_point(point_t const *point);", "",
-  "/* epitech.nvim: prototypes (:EpitechSyncHeader) */",
-}, "prototype moved before the block")
+  "    #define ORIGIN 0", "", "int sum_point(point_t const *point);", "", "int other(void);",
+}, "prototype moved with the other prototypes")
 
 h.assert_equal(run("static int helper(int x);"), "Move the definition above its first use (C-H1)",
   "static prototype action")

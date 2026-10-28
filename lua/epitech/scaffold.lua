@@ -101,7 +101,6 @@ end
 function M.templates(name)
   local base = M.base(name)
   local guard = header.guard_name(base .. ".h")
-  local sync = require("epitech.header_sync")
   local files = {}
   local library = base ~= name
   local first_source = library and ("src/" .. base .. ".c") or "src/main.c"
@@ -112,9 +111,6 @@ function M.templates(name)
     "",
     "#ifndef " .. guard,
     "    #define " .. guard,
-    "",
-    sync.BEGIN,
-    sync.END,
     "",
     "#endif",
   })

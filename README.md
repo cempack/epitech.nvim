@@ -323,7 +323,7 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   declarations, macros and non-static prototypes in a `.c` file get the hint
   `C-H1 belongs in a header`. The action moves them into
   `include/<file>.h` when it exists, else the project header: inside the
-  include guard, before the prototypes block of `:EpitechSyncHeader`, with
+  include guard, before the header's first prototype, with
   macros indented for C-G3, and adds the `#include` to the `.c`. A `static`
   function's prototype can't go in a header: the action moves the definition
   (with its comment) above its first use and deletes the prototype.
@@ -344,30 +344,23 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
 non-static functions of the `.c` files that feed it, and reports
 `1 added · 1 changed · 0 removed`. The first time, it asks which header (when
 it isn't obvious) and which directories feed it (`src` by default; `lib/`
-usually has its own header), and remembers both. The prototypes live in a
-block inside the include guard, grouped by file:
+usually has its own header), and remembers both.
 
-```c
-/* epitech.nvim: prototypes (:EpitechSyncHeader) */
-/* src/parse_args.c */
-int parse_args(int ac, char **av);
-/* epitech.nvim: end of prototypes */
-```
-
-On the first run, prototypes already in the header for those functions move
-into the block; the rest of the header is left alone. `static` functions and
-`main` stay out. An open header is edited in its buffer (so undo works),
-then formatted so long prototypes wrap at 80 columns.
-
-```lua
-header_sync = { group_by_file = true }, -- false: no /* file */ lines
-```
+It adds no comments or markers to your header. A prototype whose function
+changed is rewritten where it is, and new functions get their prototype
+right after your last synced one (at the end of the include guard the first
+time). When a function is deleted or renamed, its prototype is removed only
+if the sync wrote or updated it before: the plugin remembers those names
+outside your repository. A prototype you typed yourself is never deleted,
+even for a function that doesn't exist yet. `static` functions and `main`
+stay out. An open header is edited in its buffer (so undo works), then
+formatted so long prototypes wrap at 80 columns. Headers from earlier
+versions lose their `/* epitech.nvim: … */` markers on the next sync.
 
 ### New projects and files
 
 `:EpitechNew [name]` creates a project in the current directory (named after
-it by default): a `Makefile`, `include/<name>.h` with its guard and an empty
-prototypes block, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
+it by default): a `Makefile`, `include/<name>.h` with its guard, `src/main.c`, `tests/test_<name>.c` and a `.gitignore` for
 build products. Everything has its Epitech header and passes the formatter.
 It refuses when a `Makefile` exists; `:EpitechNew!` overwrites.
 
@@ -596,7 +589,6 @@ require("epitech").setup({
   },
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
-  header_sync = { group_by_file = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" },
 })
