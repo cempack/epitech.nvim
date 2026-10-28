@@ -183,12 +183,145 @@ function M.lazygit_yaml(version)
   }
 end
 
--- :EpitechLazygit: the YAML in a float, to paste into lazygit's config.
-function M.show_lazygit()
-  local lines = { "Add this to lazygit's config.yml (`lazygit --print-config-dir`):", "", "```yaml" }
-  vim.list_extend(lines, M.lazygit_yaml(M.lazygit_version()))
-  lines[#lines + 1] = "```"
-  return vim.lsp.util.open_floating_preview(lines, "markdown", { border = "rounded", focus_id = "epitech_lazygit" })
+-- Marks the plugin's entry in lazygit's config, so it can be updated or
+-- removed later.
+M.LAZYGIT_MARKER = "# epitech.nvim: Banana check (:EpitechLazygit)"
+
+-- lazygit's config.yml: the first file of $LG_CONFIG_FILE, else
+-- `lazygit --print-config-dir`, else the XDG default.
+function M.lazygit_config()
+  if vim.env.LG_CONFIG_FILE and vim.env.LG_CONFIG_FILE ~= "" then
+    return vim.split(vim.env.LG_CONFIG_FILE, ",", { plain = true })[1]
+  end
+  local dir
+  if vim.fn.executable("lazygit") == 1 then
+    local result = util.system({ "lazygit", "--print-config-dir" }, { text = true }):wait()
+    dir = result.code == 0 and vim.trim(result.stdout or "") or nil
+  end
+  if not dir or dir == "" then
+    dir = (vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")) .. "/lazygit"
+  end
+  return dir .. "/config.yml"
+end
+
+local function indent_of(line)
+  return #line:match("^%s*")
+end
+
+-- The rows (1-based, inclusive) of the plugin's entry in config lines, or nil.
+local function lazygit_entry(lines)
+  for i, line in ipairs(lines) do
+    if vim.trim(line) == M.LAZYGIT_MARKER then
+      local dash = lines[i + 1] and lines[i + 1]:match("^(%s*)%- ")
+      if not dash then
+        return i, i
+      end
+      local last = i + 1
+      while lines[last + 1] and (lines[last + 1]:match("^%s*$") == nil and indent_of(lines[last + 1]) > #dash) do
+        last = last + 1
+      end
+      return i, last
+    end
+  end
+end
+
+-- lines with the plugin's entry removed, and the customCommands key when
+-- nothing is left in it.
+function M.lazygit_remove(lines)
+  local first, last = lazygit_entry(lines)
+  local result = vim.deepcopy(lines)
+  if not first then
+    return result
+  end
+  for _ = first, last do
+    table.remove(result, first)
+  end
+  local header = first - 1
+  local next_line = result[first]
+  if result[header] and vim.trim(result[header]) == "customCommands:"
+    and (not next_line or (next_line:match("^%S") and not next_line:match("^%- "))) then
+    table.remove(result, header)
+    if result[header - 1] == "" and (not result[header] or result[header] == "") then
+      table.remove(result, header - 1)
+    end
+  end
+  return result
+end
+
+-- lines with the plugin's entry added or brought up to date, or nil and why
+-- not. Everything else in the config stays as it is.
+function M.lazygit_add(lines, version)
+  local item = vim.list_slice(M.lazygit_yaml(version), 2)
+  local result = M.lazygit_remove(lines)
+  local first = lazygit_entry(lines)
+  local header
+  for i, line in ipairs(result) do
+    if line:match("^customCommands:") then
+      header = i
+    end
+  end
+  if not header then
+    if #result > 0 and result[#result] ~= "" then
+      result[#result + 1] = ""
+    end
+    vim.list_extend(result, { "customCommands:", "  " .. M.LAZYGIT_MARKER })
+    vim.list_extend(result, item)
+    return result
+  end
+  local rest = vim.trim(result[header]:match("^customCommands:(.*)$"):gsub("%s+#.*$", ""))
+  if rest == "[]" then
+    result[header] = "customCommands:"
+  elseif rest ~= "" then
+    return nil, "lazygit's customCommands is written on one line; add the entry by hand"
+  end
+  -- The list's own indentation, and no other command already on B.
+  local dash
+  local i = header + 1
+  while result[i] and (result[i]:match("^%s*$") or result[i]:match("^%s*#") or indent_of(result[i]) > 0
+    or result[i]:match("^%- ")) do
+    dash = dash or result[i]:match("^(%s*)%- ")
+    local key = result[i]:match("^%s*%-?%s*key:%s*[\"']?([^\"'%s]+)[\"']?%s*$")
+    if key == "B" then
+      return nil, "another lazygit custom command already uses B"
+    end
+    i = i + 1
+  end
+  dash = dash or "  "
+  local entry = { dash .. M.LAZYGIT_MARKER }
+  for _, line in ipairs(item) do
+    entry[#entry + 1] = dash .. line:sub(3)
+  end
+  -- Where it was, when it's updated; first in the list otherwise.
+  local at = first and first or header + 1
+  for k, line in ipairs(entry) do
+    table.insert(result, at + k - 1, line)
+  end
+  return result
+end
+
+-- :EpitechLazygit [remove]: adds the Banana check on B in lazygit's files
+-- panel (or updates it, when the plugin moved), or removes it.
+function M.lazygit(remove)
+  local path = M.lazygit_config()
+  local lines = vim.fn.filereadable(path) == 1 and vim.fn.readfile(path) or {}
+  local result, reason
+  if remove then
+    result = M.lazygit_remove(lines)
+  else
+    result, reason = M.lazygit_add(lines, M.lazygit_version())
+  end
+  if not result then
+    return util.notify("lazygit: " .. reason, vim.log.levels.WARN)
+  elseif vim.deep_equal(result, lines) then
+    return util.notify(remove and "lazygit: no Banana check to remove" or "lazygit: the Banana check is already on B")
+  end
+  vim.fn.mkdir(vim.fs.dirname(path), "p")
+  if #lines > 0 then
+    vim.fn.writefile(lines, path .. ".bak")
+  end
+  vim.fn.writefile(result, path)
+  util.notify(remove and ("lazygit: Banana check removed from " .. path)
+    or ("lazygit: B in the files panel now runs the Banana check (" .. path .. ")"))
 end
 
 return M

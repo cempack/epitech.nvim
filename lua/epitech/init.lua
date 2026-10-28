@@ -150,9 +150,14 @@ function M.setup(opts)
       return { "remove" }
     end,
   })
-  command("EpitechLazygit", function()
-    require("epitech.hooks").show_lazygit()
-  end, "Show a lazygit key for the Epitech check")
+  command("EpitechLazygit", function(args)
+    require("epitech.hooks").lazygit(args.args == "remove")
+  end, "Add the Epitech check to lazygit (B in the files panel), or remove it", {
+    nargs = "?",
+    complete = function()
+      return { "remove" }
+    end,
+  })
   require("epitech.hooks").check_stale()
 
   require("epitech.lsp").setup(options)

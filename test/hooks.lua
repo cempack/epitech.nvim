@@ -121,8 +121,51 @@ h.assert_equal(yaml, {
 }, "lazygit 0.51 and later")
 h.assert_equal(hooks.lazygit_yaml({ 0, 50 })[6], "    subprocess: true", "older lazygit")
 h.assert_equal(hooks.lazygit_yaml(nil)[6], "    output: terminal", "unknown version")
-local _, win = hooks.show_lazygit()
-assert(vim.api.nvim_win_is_valid(win), ":EpitechLazygit float")
+
+-- :EpitechLazygit edits lazygit's config, keeping everything else.
+local command = ('    command: "nvim --clean --headless -l %s --ci ."'):format(plugin .. "/scripts/check.lua")
+local entry = { "  " .. hooks.LAZYGIT_MARKER, '  - key: "B"', '    context: "files"',
+  '    description: "Banana check"', command, "    output: terminal" }
+local version = { 0, 55 }
+h.assert_equal(hooks.lazygit_add({}, version), vim.list_extend({ "customCommands:" }, entry), "empty config")
+h.assert_equal(hooks.lazygit_add({ "gui:", "  theme:", "    lightTheme: false" }, version),
+  vim.list_extend({ "gui:", "  theme:", "    lightTheme: false", "", "customCommands:" }, vim.deepcopy(entry)),
+  "no customCommands: appended")
+h.assert_equal(hooks.lazygit_remove(hooks.lazygit_add({ "gui:", "  theme:", "    lightTheme: false" }, version)),
+  { "gui:", "  theme:", "    lightTheme: false" }, "removing gives the config back as it was")
+h.assert_equal(hooks.lazygit_add({ "customCommands: []", "gui:", "  nerdFontsVersion: \"3\"" }, version),
+  vim.list_extend(vim.list_extend({ "customCommands:" }, vim.deepcopy(entry)), { "gui:", '  nerdFontsVersion: "3"' }),
+  "customCommands: [] becomes a list")
+local existing = { "customCommands:", "- key: 'C'", "  context: 'global'", "  command: 'git cz'", "os:",
+  "  editPreset: nvim" }
+local added = hooks.lazygit_add(existing, version)
+h.assert_equal(added, { "customCommands:", hooks.LAZYGIT_MARKER, '- key: "B"', '  context: "files"',
+  '  description: "Banana check"', command:sub(3), "  output: terminal", "- key: 'C'", "  context: 'global'",
+  "  command: 'git cz'", "os:", "  editPreset: nvim" }, "an existing list keeps its items and indentation")
+h.assert_equal(hooks.lazygit_add(added, version), added, "already there: unchanged")
+local moved = vim.deepcopy(added)
+moved[6] = "  command: \"nvim --clean --headless -l /old/epitech.nvim/scripts/check.lua --ci .\""
+h.assert_equal(hooks.lazygit_add(moved, version), added, "an old path is updated in place")
+h.assert_equal(hooks.lazygit_remove(added), existing, "removed")
+h.assert_equal({ hooks.lazygit_add({ "customCommands:", "  - key: B", "    command: make" }, version) },
+  { nil, "another lazygit custom command already uses B" }, "B taken")
+h.assert_equal({ hooks.lazygit_add({ "customCommands: [{key: C, command: make}]" }, version) },
+  { nil, "lazygit's customCommands is written on one line; add the entry by hand" }, "inline list")
+
+-- The command, on the file $LG_CONFIG_FILE names.
+local lazygit_dir = vim.fn.tempname()
+vim.env.LG_CONFIG_FILE = lazygit_dir .. "/config.yml"
+h.assert_equal(hooks.lazygit_config(), lazygit_dir .. "/config.yml", "LG_CONFIG_FILE")
+notices = {}
+vim.cmd("EpitechLazygit")
+assert(vim.list_contains(vim.fn.readfile(lazygit_dir .. "/config.yml"), "  " .. hooks.LAZYGIT_MARKER),
+  ":EpitechLazygit wrote the entry")
+h.assert_equal(notices, { "lazygit: B in the files panel now runs the Banana check (" .. lazygit_dir
+  .. "/config.yml)" }, ":EpitechLazygit says so")
+vim.cmd("EpitechLazygit remove")
+h.assert_equal(vim.fn.readfile(lazygit_dir .. "/config.yml"), {}, ":EpitechLazygit remove")
+vim.env.LG_CONFIG_FILE = nil
+vim.fn.delete(lazygit_dir, "rf")
 
 vim.fn.chdir("/")
 cleanup()

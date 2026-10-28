@@ -97,7 +97,7 @@ diagnostics, meters, hints and fixes below are for.
 | `:'<,'>EpitechMoveTo <path>` | Move the selected functions to another file |
 | `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
 | `:EpitechHooks [remove]` | Install (or remove) the pre-push hook |
-| `:EpitechLazygit` | Show a lazygit key for the check |
+| `:EpitechLazygit [remove]` | Add the check to lazygit on `B` (or remove it) |
 
 ### Live Banana diagnostics
 
@@ -542,10 +542,15 @@ it, or cancel. `:EpitechHooks remove` deletes the plugin's hook and puts a
 chained one back. The hook uses absolute paths to Neovim and the plugin; if
 the plugin moves, you're warned once to run `:EpitechHooks` again.
 
-`:EpitechLazygit` shows a lazygit custom command (key `B` in the files
-panel) that runs the check; paste it into lazygit's `config.yml`. It uses
-`output: terminal` (lazygit 0.51 and later) or `subprocess: true` for older
-versions. The plugin never edits lazygit's config.
+`:EpitechLazygit` adds a custom command to lazygit's `config.yml` (the file
+`$LG_CONFIG_FILE` names, else the one in `lazygit --print-config-dir`):
+`B` in the files panel runs the check. The rest of the config stays as it
+is, and the previous version is kept as `config.yml.bak`. Running it again
+updates the entry (after the plugin moved, for example), and
+`:EpitechLazygit remove` takes it out. It uses `output: terminal` (lazygit
+0.51 and later) or `subprocess: true` for older versions. It changes nothing
+when another custom command already uses `B`, or when `customCommands` is
+written on a single line.
 
 ## Configuration
 
