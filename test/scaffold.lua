@@ -65,10 +65,10 @@ h.assert_equal(read("include/demo.h"), vim.list_extend(c_header("Declarations fo
   "/* epitech.nvim: end of prototypes */", "", "#endif",
 }), "project header")
 h.assert_equal(read("src/main.c"), vim.list_extend(c_header("Entry point"), {
-  "", '#include "demo.h"', "", "int main(int ac, char **av)", "{", "    return 0;", "}",
+  "", '#include "../include/demo.h"', "", "int main(int ac, char **av)", "{", "    return 0;", "}",
 }), "main.c")
 h.assert_equal(read("tests/test_demo.c"), vim.list_extend(c_header("Unit tests"), {
-  "", "#include <criterion/criterion.h>", '#include "demo.h"', "", "Test(demo, placeholder)", "{",
+  "", "#include <criterion/criterion.h>", '#include "../include/demo.h"', "", "Test(demo, placeholder)", "{",
   "    cr_assert_eq(1, 1);", "}",
 }), "Criterion skeleton")
 h.assert_equal(read(".gitignore"), { "*.o", "*.a", "*.so", "*.gcda", "*.gcno", "vgcore.*", "*~", "\\#*#", "demo",

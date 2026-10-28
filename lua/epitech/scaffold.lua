@@ -120,11 +120,11 @@ function M.templates(name)
   })
 
   if library then
-    files[first_source] = vim.list_extend(c_header(name, base), { "", '#include "' .. base .. '.h"' })
+    files[first_source] = vim.list_extend(c_header(name, base), { "", '#include "../include/' .. base .. '.h"' })
   else
     files["src/main.c"] = vim.list_extend(c_header(name, "Entry point"), {
       "",
-      '#include "' .. base .. '.h"',
+      '#include "../include/' .. base .. '.h"',
       "",
       "int main(int ac, char **av)",
       "{",
@@ -136,7 +136,7 @@ function M.templates(name)
   files["tests/test_" .. base .. ".c"] = vim.list_extend(c_header(name, "Unit tests"), {
     "",
     "#include <criterion/criterion.h>",
-    '#include "' .. base .. '.h"',
+    '#include "../include/' .. base .. '.h"',
     "",
     "Test(" .. base:gsub("[^%w_]", "_") .. ", placeholder)",
     "{",
