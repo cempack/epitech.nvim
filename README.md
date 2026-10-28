@@ -92,7 +92,7 @@ diagnostics, meters, hints and fixes below are for.
 | `:EpitechHints [on\|off]` | Show or hide the hints |
 | `:EpitechSyncHeader` | Update the project header's prototypes |
 | `:EpitechNew[!] [name]` | Create a project skeleton |
-| `:EpitechNewFile <path>` | Create a source file with its header, add it to `SRC` |
+| `<leader>cN`, `:EpitechNewFile [path]` | Create a source file with its header, add it to `SRC` |
 | `:'<,'>EpitechExtract [name]` | Move the selected statements into a new function |
 | `:'<,'>EpitechMoveTo <path>` | Move the selected functions to another file |
 | `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
@@ -379,7 +379,8 @@ exit code). A name ending in `.a` (`:EpitechNew libmy.a`) makes a library
 instead: built with `ar rc`, with `include/my.h`, `src/my.c` and tests
 linked with `-L. -lmy`.
 
-`:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
+`<leader>cN` (or `:EpitechNewFile` alone) asks for the path in a small
+window, `src/` already typed. `:EpitechNewFile src/parse_args.c` creates a file with its Epitech header
 (asking for the description), adds it to the Makefile and opens it: one more
 line of the `SRC = … \` list (`TEST_SRC` for files under `tests/`), or a
 `SRC += …` line when the Makefile uses those. A `.h` gets an include guard
@@ -387,7 +388,7 @@ instead. When `SRC` is built with `$(wildcard …)` or doesn't exist, the
 Makefile is left alone and you're told what to add.
 
 ```lua
-scaffold = { cc = "epiclang", cflags = "" }, -- cflags: a CFLAGS line when set
+scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" }, -- cflags: a CFLAGS line when set
 ```
 
 ### Extracting a function
@@ -597,7 +598,7 @@ require("epitech").setup({
   fixes = { enabled = true },
   header_sync = { group_by_file = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
-  scaffold = { cc = "epiclang", cflags = "" },
+  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" },
 })
 ```
 

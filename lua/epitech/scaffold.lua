@@ -174,12 +174,20 @@ function M.new(name, dir, force)
   return written
 end
 
--- :EpitechNewFile <path>: a .c or .h file with its Epitech header, relative
+-- :EpitechNewFile [path]: a .c or .h file with its Epitech header, relative
 -- to the project root. A .c file is added to SRC (TESTS_SRC under tests/
 -- when the Makefile has it); a .h gets an include guard. Then it's opened.
 -- on_done (optional) receives the absolute path.
 function M.new_file(path, root, on_done)
   root = root or project.root(0)
+  if not path then
+    -- No path given (<leader>cN): ask for it, relative to the project.
+    return vim.ui.input({ prompt = "New file: ", default = "src/" }, function(answer)
+      if answer and answer ~= "" and answer ~= "src/" then
+        M.new_file(answer, root, on_done)
+      end
+    end)
+  end
   local full = path:sub(1, 1) == "/" and path or root .. "/" .. path
   local relative = util.relative(full, root) or path
   if vim.fn.filereadable(full) == 1 then
