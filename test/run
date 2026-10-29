@@ -42,6 +42,7 @@ run extract
 run header_sync
 run move_header
 run scaffold
+run lib
 run split
 run snippets
 run check

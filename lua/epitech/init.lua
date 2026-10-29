@@ -117,6 +117,17 @@ function M.setup(opts)
     require("epitech.scaffold").new_file()
   end, "Epitech New File")
 
+  command("EpitechLib", function(args)
+    require("epitech.lib").command(args.fargs)
+  end, "Add libmy functions to lib/my", {
+    nargs = "*",
+    complete = function(lead)
+      return vim.tbl_filter(function(name)
+        return vim.startswith(name, lead)
+      end, require("epitech.lib").names())
+    end,
+  })
+
   command("EpitechMoveTo", function(args)
     require("epitech.split").move_to(args.args, args.line1 - 1, args.line2 - 1)
   end, "Move the selected functions to another file", { nargs = 1, range = true, complete = "file" })

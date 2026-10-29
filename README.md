@@ -93,6 +93,7 @@ diagnostics, meters, hints and fixes below are for.
 | `:EpitechSyncHeader` | Update the project header's prototypes |
 | `:EpitechNew[!] [name]` | Create a project skeleton |
 | `<leader>cN`, `:EpitechNewFile [path]` | Create a source file with its header, add it to `SRC` |
+| `:EpitechLib [name…]` | Add libmy functions to `lib/my` (a picker without a name) |
 | `:'<,'>EpitechExtract [name]` | Move the selected statements into a new function |
 | `:'<,'>EpitechMoveTo <path>` | Move the selected functions to another file |
 | `:EpitechIgnore [file\|project]` | Silence the warnings for this file (default) or the whole project |
@@ -394,6 +395,27 @@ Makefile is left alone and you're told what to add.
 ```lua
 scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" }, -- cflags: a CFLAGS line when set
 ```
+
+### libmy
+
+The plugin carries the Pool's libmy (the 35 functions from `my_putchar` to
+`my_advanced_sort_word_array`, minus `my_showmem` and the linked lists),
+with the Pool's prototypes, each in its own file, written to pass Banana:
+every function fits in 20 lines, has braces everywhere and gets no hint.
+A project only gets the functions it uses, plus the ones those call
+(`my_strdup` brings `my_strcpy` and `my_strlen`):
+
+- `:EpitechLib my_strdup` (Tab completes the names; no name opens a picker
+  of the missing ones) writes `lib/my/my_strdup.c` and what it needs, each
+  with its Epitech header, adds them to `lib/my/Makefile` (created when
+  missing, building `libmy.a` with `ar rc`) and their prototypes to
+  `my.h` (`include/my.h`, or `lib/my/my.h` if that's where yours is).
+- On a call to a libmy function the project doesn't have yet, the code
+  action **Add my_strdup to lib/my** does the same and includes `my.h` in
+  the file.
+
+When the project's `Makefile` doesn't mention `lib/my`, you're told what to
+add: `$(MAKE) -C lib/my` before linking, then `-L./lib/my -lmy`.
 
 ### Extracting a function
 

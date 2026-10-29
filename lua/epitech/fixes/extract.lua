@@ -529,16 +529,6 @@ local function body_lines(text, base_indent)
   return result
 end
 
--- Runs the formatter on a piece of C; returns it unchanged when the
--- formatter can't run (clang-format missing).
-local function format_lines(lines)
-  local scratch = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(scratch, 0, -1, false, lines)
-  local ok = pcall(require("epitech.format").format_buffer, scratch)
-  local result = ok and vim.api.nvim_buf_get_lines(scratch, 0, -1, false) or lines
-  vim.api.nvim_buf_delete(scratch, { force = true })
-  return result
-end
 
 -- The new function's lines and the call's, for a plan and a name.
 function M.texts(plan, name)
@@ -590,13 +580,13 @@ function M.texts(plan, name)
       wrapper[#wrapper + 1] = string.rep("    ", level - 1) .. "    }"
     end
     wrapper[#wrapper + 1] = "}"
-    local formatted = format_lines(wrapper)
+    local formatted = require("epitech.util").format_lines(wrapper)
     local inner = vim.list_slice(formatted, depth + 2, #formatted - depth)
     if #inner > 0 and vim.startswith(inner[1], indent .. (plan.returns_value and "return " or "") .. name) then
       call_lines = inner
     end
   end
-  return format_lines(fn), call_lines
+  return require("epitech.util").format_lines(fn), call_lines
 end
 
 -- Why name can't be the new function's, or nil.

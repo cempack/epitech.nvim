@@ -120,6 +120,17 @@ function M.ensure_include(buf, name)
   return true
 end
 
+-- Runs the formatter on a piece of C; returns it unchanged when the
+-- formatter can't run (clang-format missing).
+function M.format_lines(lines)
+  local scratch = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(scratch, 0, -1, false, lines)
+  local ok = pcall(require("epitech.format").format_buffer, scratch)
+  local result = ok and vim.api.nvim_buf_get_lines(scratch, 0, -1, false) or lines
+  vim.api.nvim_buf_delete(scratch, { force = true })
+  return result
+end
+
 function M.notify(message, level)
   vim.notify(message, level or vim.log.levels.INFO, { title = "Epitech" })
 end

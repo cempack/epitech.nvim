@@ -7,7 +7,7 @@ local M = {}
 
 -- Fix modules under lua/epitech/fixes/, by id.
 M.modules = { "macro", "static", "const", "makefile", "void", "decl", "one_stmt", "switch", "struct_ptr", "move_header",
-  "extract" }
+  "extract", "lib" }
 
 local registered, modules_loaded = {}, false
 
