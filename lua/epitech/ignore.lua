@@ -1,7 +1,8 @@
 -- :EpitechIgnore and :EpitechUnignore: silence the plugin's warnings for a
 -- file or a whole project (Banana diagnostics, hints, meters, the check and
--- the push guard). Formatting and the code-action fixes still apply. The choice lives in the project state, outside the
--- repository (C-O1): nothing is written into the project.
+-- the push guard). Formatting and the code-action fixes still apply. The
+-- choice lives in the project state, outside the repository (C-O1): nothing
+-- is written into the project.
 local project = require("epitech.project")
 local util = require("epitech.util")
 
