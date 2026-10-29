@@ -198,7 +198,9 @@ them back, and `:EpitechHints` toggles.
   -1 or 84 (Epitech's error exit code) gets `C-G9 name this number?`.
   Numbers a grader reads as they are get nothing: argument counts and
   positions (`ac != 2`, `av[2]`), 2 and 10 as a factor, divisor or modulus
-  (`len / 2`, `nb % 10`), and the value of a `const` variable. The
+  (`len / 2`, `nb % 10`), the standard file descriptors 0 to 2 given to
+  `write`, `read` and the like (`write(2, …)`), and the value of a `const`
+  variable. The
   code action **Extract 4096 into a macro…** asks for a name (suggesting
   `BUFFER_SIZE` for `char buffer[4096]`), offers the project's existing
   macros with the same value first, and can replace every identical number

@@ -36,10 +36,13 @@ end
 local COMPARISONS = { ["=="] = true, ["!="] = true, ["<"] = true, [">"] = true, ["<="] = true, [">="] = true }
 local ARGUMENTS = { ac = true, argc = true, av = true, argv = true }
 local FACTORS = { [2] = true, [10] = true }
+-- Calls whose first argument is a file descriptor.
+local FD_CALLS = { write = true, read = true, close = true, dup = true, dup2 = true, isatty = true, fstat = true }
 
 -- Numbers every program writes that a grader reads as they are: argument
 -- counts and positions (ac != 2, av[1]), 2 and 10 as a factor, divisor or
--- modulus (halving, parity, decimal digits: nb % 10), and the value of a
+-- modulus (halving, parity, decimal digits: nb % 10), the standard file
+-- descriptors 0 to 2 given to write() and the like, and the value of a
 -- const variable, which names it already.
 local function obvious(node, value, source)
   local child, parent = node, node:parent()
@@ -60,6 +63,10 @@ local function obvious(node, value, source)
   elseif type == "subscript_expression" then
     local argument = parent:field("argument")[1]
     return argument:id() ~= child:id() and argument:type() == "identifier" and ARGUMENTS[ts.text(argument, source)]
+  elseif type == "argument_list" then
+    local fn = parent:parent():field("function")[1]
+    return value >= 0 and value <= 2 and parent:named_child(0):id() == child:id() and fn:type() == "identifier"
+      and FD_CALLS[ts.text(fn, source)] == true
   elseif type == "init_declarator" and parent:field("value")[1]:id() == child:id() then
     for qualifier in parent:parent():iter_children() do
       if qualifier:type() == "type_qualifier" and ts.text(qualifier, source) == "const" then

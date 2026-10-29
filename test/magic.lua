@@ -38,8 +38,9 @@ h.assert_equal(found, {
 }, "magic number hints (4096, 42, -5, 0x10, 2.5)")
 
 -- Obvious numbers: argument counts and positions, 2 and 10 as a factor,
--- divisor or modulus, a const variable's value. Not: 10 as a dividend, 3 as
--- a divisor, 2 compared with something else.
+-- divisor or modulus, a const variable's value, a standard file descriptor
+-- given to write(). Not: 10 as a dividend, 3 as a divisor, 2 compared with
+-- something else, a length, a descriptor given to another function.
 local obvious_src = table.concat({
   "int main(int ac, char **av)",
   "{",
@@ -51,13 +52,15 @@ local obvious_src = table.concat({
   "    nb = nb * 10 + nb % 10 + nb / 2 + 2 * nb;",
   "    nb *= 10;",
   "    nb = 10 / nb + nb / 3;",
+  "    write(2, \"ab\", 2);",
+  "    my_write(2, \"ab\");",
   "    return nb == 2 ? limit : 5;",
   "}",
 }, "\n")
 h.assert_equal(vim.tbl_map(function(literal)
   return { literal.row, literal.text }
 end, magic.literals(require("epitech.ts").parse_string(obvious_src), obvious_src, { 0, 1, -1, 84 })),
-  { { 9, "10" }, { 9, "3" }, { 10, "2" }, { 10, "5" } }, "obvious numbers aren't flagged")
+  { { 9, "10" }, { 9, "3" }, { 10, "2" }, { 11, "2" }, { 12, "2" }, { 12, "5" } }, "obvious numbers aren't flagged")
 
 -- The allow list and the switches.
 h.assert_equal(#only_g9(hints.collect(src, "magic.c", { root = "/tmp", options = config.merge({
