@@ -35,6 +35,7 @@ M.defaults = {
   },
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
+  clangd = { fix_includes = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
 }

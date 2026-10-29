@@ -343,6 +343,39 @@ program's meaning. Turn the menu off with `fixes = { enabled = false }`.
   struct, or the change can't be checked. So does a function stored as a
   function pointer, whose parameters must keep matching the pointer's type.
 
+### clangd's includes
+
+With LazyVim's clangd extra, accepting a completion also adds the
+`#include` clangd thinks declares the symbol (`--header-insertion=iwyu`),
+and its quick fix offers **Include … for symbol …**. On glibc and recent
+clang that header is often an internal one, holding next to nothing:
+`<malloc.h>` for `malloc`, `<__stddef_size_t.h>` for `size_t`,
+`<bits/…>` for `printf` or `stat`, `<SFML/Graphics/RenderWindow.h>`,
+`<criterion/internal/assert.h>`.
+
+epitech.nvim fixes clangd's answers before the completion menu (blink.cmp,
+nvim-cmp) or the code action menu sees them:
+
+- an internal header becomes the public one for about 290 common symbols
+  (`malloc`, `free`, `exit` → `<stdlib.h>`; `write`, `read`, `close` →
+  `<unistd.h>`; `open`, `O_RDONLY` → `<fcntl.h>`; `size_t`, `NULL` →
+  `<stddef.h>`; `stat`, `S_ISDIR` → `<sys/stat.h>`; `printf` →
+  `<stdio.h>`…), and the edit is dropped when the file already includes it;
+- an internal header for any other symbol is dropped: no include rather
+  than a wrong one;
+- CSFML gets its module header (`<SFML/Graphics.h>`, `<SFML/Audio.h>`…),
+  Criterion `<criterion/criterion.h>` (its public headers, such as
+  `<criterion/redirect.h>`, stay);
+- standard, POSIX and your own `"…"` headers are left as they are.
+
+```lua
+clangd = { fix_includes = true },
+```
+
+To stop clangd from adding includes at all, give it
+`--header-insertion=never` instead (in LazyVim, the `cmd` of
+`opts.servers.clangd` in an `nvim-lspconfig` spec).
+
 ### Header sync
 
 `:EpitechSyncHeader` updates the project header's prototypes (C-H1) from the
@@ -659,6 +692,7 @@ require("epitech").setup({
   },
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
+  clangd = { fix_includes = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
 })

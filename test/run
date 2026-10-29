@@ -25,6 +25,7 @@ run project
 run rules
 run ts
 run lsp
+run clangd
 run banana
 run explain
 run budget

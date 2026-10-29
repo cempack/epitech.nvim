@@ -193,6 +193,7 @@ function M.setup(opts)
 
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
+  require("epitech.clangd").setup(options)
   require("epitech.budget").setup(options)
   require("epitech.hints").setup(options)
   require("epitech.hints.makefile").setup(options)
