@@ -377,6 +377,28 @@ exit code). A name ending in `.a` (`:EpitechNew libmy.a`) makes a library
 instead: built with `ar rc`, with `include/my.h`, `src/my.c` and tests
 linked with `-L. -lmy`.
 
+A program also gets `src/print_error.c`, for the errors every project has
+to report on the error output before returning 84:
+
+```c
+if (fd == -1) {
+    return print_error(av[1]);          /* my_ls: foo: No such file or directory */
+}
+if (ac != 2) {
+    return print_error_message("usage: ./my_ls file"); /* my_ls: usage: … */
+}
+```
+
+`print_error(subject)` reads `errno` (messages for `ENOENT`, `EACCES`,
+`EISDIR`, `ENOTDIR`, `ENOMEM`, `EINVAL`, `EIO`, else `Unknown error`, in a
+`switch` so C-C1 stays happy); both return `EXIT_ERROR`. The project
+header defines `PROGRAM_NAME` and `EXIT_ERROR 84` and declares them. The
+error file needs `my_strlen`, so the project starts with a `lib/my`
+holding just that ([libmy](#libmy)), and the Makefile builds it
+(`$(MAKE) -C lib/my`) and links it (`LDFLAGS = -L./lib/my`, `-lmy` in
+`LDLIBS`); `clean` and `fclean` clean it too. Turn it off with
+`scaffold = { error_file = false }`.
+
 Before writing anything, `:EpitechNew` asks which libraries the project
 links: CSFML graphics (with window and system), CSFML audio, CSFML network,
 ncurses and math (`-lm`). Pick an entry to check or uncheck it, then
@@ -393,7 +415,12 @@ instead. When `SRC` is built with `$(wildcard …)` or doesn't exist, the
 Makefile is left alone and you're told what to add.
 
 ```lua
-scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" }, -- cflags: a CFLAGS line when set
+scaffold = {
+  keymap = "<leader>cN",
+  cc = "epiclang",
+  cflags = "",       -- a CFLAGS line when set
+  error_file = true, -- src/print_error.c and the libmy it uses
+},
 ```
 
 ### libmy
@@ -633,7 +660,7 @@ require("epitech").setup({
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
-  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" },
+  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
 })
 ```
 

@@ -4,6 +4,7 @@
 -- the user asked (C-O1).
 local config = require("epitech.config")
 local header = require("epitech.header")
+local lib = require("epitech.lib")
 local makefile = require("epitech.makefile")
 local project = require("epitech.project")
 local util = require("epitech.util")
@@ -79,8 +80,9 @@ end
 
 -- The Makefile of a new project. A name ending in .a (libmy.a) builds a
 -- library with ar and links the tests against it; any other name builds a
--- program, whose tests take every source but main.c.
-function M.makefile(name, sources, tests, ldlibs)
+-- program, whose tests take every source but main.c. With with_lib, the
+-- program and its tests build lib/my first and link libmy.
+function M.makefile(name, sources, tests, ldlibs, with_lib)
   local options = config.options.scaffold
   local library = name:match("^lib(.+)%.a$")
   local lines = {
@@ -98,6 +100,10 @@ function M.makefile(name, sources, tests, ldlibs)
   }
   if options.cflags ~= "" then
     vim.list_extend(lines, { "CFLAGS = " .. options.cflags, "" })
+  end
+  if with_lib then
+    vim.list_extend(lines, { "LDFLAGS = -L./lib/my", "" })
+    ldlibs = vim.list_extend({ "-lmy" }, ldlibs or {})
   end
   if ldlibs and #ldlibs > 0 then
     local line = "LDLIBS = " .. table.concat(ldlibs, " ")
@@ -119,6 +125,16 @@ function M.makefile(name, sources, tests, ldlibs)
       "\t$(CC) -o unit_tests $(TEST_SRC) $(CPPFLAGS) -L. -l" .. library .. " -lcriterion \\",
       "\t$(LDLIBS) --coverage",
     })
+  elseif with_lib then
+    vim.list_extend(lines, {
+      "\t$(MAKE) -C lib/my",
+      "\t$(CC) -o $(NAME) $(OBJ) $(LDFLAGS) $(LDLIBS)",
+      "",
+      "unit_tests: fclean",
+      "\t$(MAKE) -C lib/my",
+      "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
+      "\t$(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -lcriterion --coverage",
+    })
   else
     vim.list_extend(lines, {
       "\t$(CC) -o $(NAME) $(OBJ) $(LDLIBS)",
@@ -136,11 +152,21 @@ function M.makefile(name, sources, tests, ldlibs)
     "\texit $$status",
     "",
     "clean:",
+  })
+  if with_lib then
+    lines[#lines + 1] = "\t$(MAKE) -C lib/my clean"
+  end
+  vim.list_extend(lines, {
     "\trm -f $(OBJ)",
     "\trm -f $(OBJ:.o=.gcno) $(OBJ:.o=.gcda)",
     "\trm -f *.gcno *.gcda",
     "",
     "fclean: clean",
+  })
+  if with_lib then
+    lines[#lines + 1] = "\t$(MAKE) -C lib/my fclean"
+  end
+  vim.list_extend(lines, {
     "\trm -f $(NAME)",
     "\trm -f unit_tests",
     "",
@@ -156,23 +182,108 @@ function M.base(name)
   return name:match("^lib(.+)%.a$") or name
 end
 
--- The files of a new project: { [relative path] = lines }.
+-- src/print_error.c: messages for errno values a project usually meets,
+-- printed as `name: subject: message` on the error output (like the shell's
+-- tools do) with a write() of its own (libmy only writes to the standard
+-- output), returning EXIT_ERROR so main can `return print_error(path);`.
+-- A switch keeps the cases flat (C-C1 allows 3 branches to an if chain).
+function M.error_file(name)
+  local base = M.base(name)
+  return vim.list_extend(c_header(name, "Error messages"), {
+    "",
+    "#include <errno.h>",
+    "#include <unistd.h>",
+    '#include "../include/my.h"',
+    '#include "../include/' .. base .. '.h"',
+    "",
+    "static char const *get_error_message(int error)",
+    "{",
+    "    switch (error) {",
+    "        case ENOENT:",
+    '            return "No such file or directory";',
+    "        case EACCES:",
+    '            return "Permission denied";',
+    "        case EISDIR:",
+    '            return "Is a directory";',
+    "        case ENOTDIR:",
+    '            return "Not a directory";',
+    "        case ENOMEM:",
+    '            return "Cannot allocate memory";',
+    "        case EINVAL:",
+    '            return "Invalid argument";',
+    "        case EIO:",
+    '            return "Input/output error";',
+    "        default:",
+    '            return "Unknown error";',
+    "    }",
+    "}",
+    "",
+    "static void put_error(char const *str)",
+    "{",
+    "    write(STDERR_FILENO, str, my_strlen(str));",
+    "}",
+    "",
+    "int print_error(char const *subject)",
+    "{",
+    "    char const *message = get_error_message(errno);",
+    "",
+    "    put_error(PROGRAM_NAME);",
+    '    put_error(": ");',
+    "    put_error(subject);",
+    '    put_error(": ");',
+    "    put_error(message);",
+    '    put_error("\\n");',
+    "    return EXIT_ERROR;",
+    "}",
+    "",
+    "int print_error_message(char const *message)",
+    "{",
+    "    put_error(PROGRAM_NAME);",
+    '    put_error(": ");',
+    "    put_error(message);",
+    '    put_error("\\n");',
+    "    return EXIT_ERROR;",
+    "}",
+  })
+end
+
+-- The lib/my functions the error file calls.
+M.ERROR_FILE_LIB = { "my_strlen" }
+
+-- The files of a new project: { [relative path] = lines }. A program gets
+-- src/print_error.c and the part of libmy it uses when scaffold.error_file
+-- is on.
 function M.templates(name, ldlibs)
   local base = M.base(name)
   local guard = header.guard_name(base .. ".h")
   local files = {}
   local library = base ~= name
+  local errors = not library and config.options.scaffold.error_file
   local first_source = library and ("src/" .. base .. ".c") or "src/main.c"
+  local sources = { first_source }
+  if errors then
+    sources[#sources + 1] = "src/print_error.c"
+    files["src/print_error.c"] = M.error_file(name)
+    for path, lines in pairs(lib.templates(name, M.ERROR_FILE_LIB)) do
+      files[path] = lines
+    end
+  end
 
-  files["Makefile"] = M.makefile(name, { first_source }, { "tests/test_" .. base .. ".c" }, ldlibs)
+  files["Makefile"] = M.makefile(name, sources, { "tests/test_" .. base .. ".c" }, ldlibs, errors)
 
-  files["include/" .. base .. ".h"] = vim.list_extend(c_header(name, "Declarations for " .. name), {
-    "",
-    "#ifndef " .. guard,
-    "    #define " .. guard,
-    "",
-    "#endif",
-  })
+  local project_header = c_header(name, "Declarations for " .. name)
+  vim.list_extend(project_header, { "", "#ifndef " .. guard, "    #define " .. guard })
+  if errors then
+    vim.list_extend(project_header, {
+      '    #define PROGRAM_NAME "' .. name .. '"',
+      "    #define EXIT_ERROR 84",
+      "",
+      "int print_error(char const *subject);",
+      "int print_error_message(char const *message);",
+    })
+  end
+  vim.list_extend(project_header, { "", "#endif" })
+  files["include/" .. base .. ".h"] = project_header
 
   if library then
     files[first_source] = vim.list_extend(c_header(name, base), { "", '#include "../include/' .. base .. '.h"' })

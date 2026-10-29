@@ -36,7 +36,7 @@ M.defaults = {
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
-  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "" },
+  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
 }
 
 -- Lists replace the default instead of being merged into it; the value says

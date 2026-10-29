@@ -46,16 +46,37 @@ local function makefile_tail(unit_tests)
     "re: fclean $(NAME)", "", ".PHONY: all clean fclean re unit_tests tests_run",
   })
 end
-h.assert_equal(read("Makefile"), vim.list_extend({
+-- The program builds lib/my (for the error file) before linking it.
+h.assert_equal(read("Makefile"), {
   "##", "## EPITECH PROJECT, " .. year, "## demo", "## File description:", "## Makefile", "##", "",
-  "CC = epiclang", "", "CPPFLAGS = -I./include", "",
-  "LDLIBS = -lcsfml-graphics -lcsfml-window -lcsfml-system -lm", "", "NAME = demo", "", "SRC = src/main.c", "",
+  "CC = epiclang", "", "CPPFLAGS = -I./include", "", "LDFLAGS = -L./lib/my", "",
+  "LDLIBS = -lmy -lcsfml-graphics -lcsfml-window -lcsfml-system -lm", "", "NAME = demo", "",
+  "SRC = src/main.c \\", "\t\tsrc/print_error.c", "", "OBJ = $(SRC:.c=.o)", "", "TEST_SRC = tests/test_demo.c", "",
+  "all: $(NAME)", "", "$(NAME): $(OBJ)", "\t$(MAKE) -C lib/my", "\t$(CC) -o $(NAME) $(OBJ) $(LDFLAGS) $(LDLIBS)", "",
+  "unit_tests: fclean", "\t$(MAKE) -C lib/my",
+  "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
+  "\t$(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -lcriterion --coverage", "", "tests_run: unit_tests",
+  "\t./unit_tests; status=$$?; \\", "\t$(MAKE) --no-print-directory fclean; \\", "\texit $$status", "", "clean:",
+  "\t$(MAKE) -C lib/my clean", "\trm -f $(OBJ)", "\trm -f $(OBJ:.o=.gcno) $(OBJ:.o=.gcda)", "\trm -f *.gcno *.gcda",
+  "", "fclean: clean", "\t$(MAKE) -C lib/my fclean", "\trm -f $(NAME)", "\trm -f unit_tests", "",
+  "re: fclean $(NAME)", "", ".PHONY: all clean fclean re unit_tests tests_run",
+}, "Makefile with libmy and the picked libraries")
+-- Without the error file: no lib/my either.
+require("epitech.config").setup({ scaffold = { error_file = false } })
+local plain = require("epitech.scaffold").templates("demo", { "-lm" })
+h.assert_equal(vim.list_slice(plain.Makefile, 8, 26), {
+  "CC = epiclang", "", "CPPFLAGS = -I./include", "", "LDLIBS = -lm", "", "NAME = demo", "", "SRC = src/main.c", "",
   "OBJ = $(SRC:.c=.o)", "", "TEST_SRC = tests/test_demo.c", "", "all: $(NAME)", "", "$(NAME): $(OBJ)",
   "\t$(CC) -o $(NAME) $(OBJ) $(LDLIBS)", "",
-}, makefile_tail({
+}, "Makefile without libmy")
+h.assert_equal(vim.list_slice(plain.Makefile, 27, #plain.Makefile), makefile_tail({
   "unit_tests: fclean", "\t$(CC) -o unit_tests $(filter-out src/main.c, $(SRC)) $(TEST_SRC) \\",
   "\t$(CPPFLAGS) $(CFLAGS) $(LDLIBS) -lcriterion --coverage",
-})), "Makefile with the picked libraries")
+}), "Makefile without libmy: the rules")
+h.assert_equal(plain["src/print_error.c"] == nil and plain["lib/my/Makefile"] == nil, true, "no error file, no lib")
+h.assert_equal(vim.list_slice(plain["include/demo.h"], 7, 11), { "", "#ifndef DEMO_H_", "    #define DEMO_H_", "",
+  "#endif" }, "an empty project header")
+require("epitech.config").setup()
 h.assert_equal(require("epitech.scaffold").library_flags({ [2] = true, [3] = true }),
   { "-lcsfml-audio", "-lcsfml-system", "-lcsfml-network" }, "csfml-system once")
 local every = require("epitech.scaffold").makefile("demo", { "src/main.c" }, { "tests/test_demo.c" },
@@ -81,8 +102,15 @@ h.assert_equal(vim.tbl_keys(require("epitech.scaffold").templates("libmy.a")), v
 }), "library files")
 require("epitech.config").setup()
 h.assert_equal(read("include/demo.h"), vim.list_extend(c_header("Declarations for demo"), {
-  "", "#ifndef DEMO_H_", "    #define DEMO_H_", "", "#endif",
+  "", "#ifndef DEMO_H_", "    #define DEMO_H_", '    #define PROGRAM_NAME "demo"', "    #define EXIT_ERROR 84", "",
+  "int print_error(char const *subject);", "int print_error_message(char const *message);", "", "#endif",
 }), "project header")
+h.assert_equal(vim.list_slice(read("src/print_error.c"), 7, 13), { "", "#include <errno.h>", "#include <unistd.h>",
+  '#include "../include/my.h"', '#include "../include/demo.h"', "", "static char const *get_error_message(int error)",
+}, "the error file")
+h.assert_equal(vim.fn.readdir(dir .. "/lib/my"), { "Makefile", "my_strlen.c" }, "only the libmy it uses")
+h.assert_equal(vim.list_slice(read("include/my.h"), 8, 12), { "#ifndef MY_H_", "    #define MY_H_", "",
+  "int my_strlen(char const *str);", "" }, "my.h")
 h.assert_equal(read("src/main.c"), vim.list_extend(c_header("Entry point"), {
   "", '#include "../include/demo.h"', "", "int main(void)", "{", "    return 0;", "}",
 }), "main.c")
@@ -97,12 +125,37 @@ h.assert_equal(read(".gitignore"), { "*.o", "*.a", "*.so", "*.gcda", "*.gcno", "
 -- comes out of the formatter unchanged.
 h.assert_equal(makefile_checks.run(table.concat(read("Makefile"), "\n") .. "\n", "Makefile", {}), {},
   "Makefile passes §9.10")
-for _, path in ipairs({ "include/demo.h", "src/main.c", "tests/test_demo.c" }) do
+for _, path in ipairs({ "include/demo.h", "src/main.c", "src/print_error.c", "tests/test_demo.c", "include/my.h",
+  "lib/my/my_strlen.c" }) do
   local lines = read(path)
   assert(header.existing_header(lines) == 1, path .. " header")
   local buf = h.buffer(dir .. "/" .. path, lines)
   require("epitech").format_buffer(buf)
   h.assert_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), lines, path .. " formatter keeps it")
+  h.assert_equal(require("epitech.hints").collect(table.concat(lines, "\n") .. "\n", dir .. "/" .. path, { root = dir }),
+    {}, path .. " has no hints")
+end
+h.assert_equal(makefile_checks.run(table.concat(read("lib/my/Makefile"), "\n") .. "\n", "Makefile", {}), {},
+  "lib/my/Makefile passes §9.10")
+
+-- With a C compiler: the project builds with warnings as errors, and
+-- print_error prints `demo: subject: message` and returns 84.
+local cc = vim.fn.executable("cc") == 1 and "cc" or vim.fn.executable("gcc") == 1 and "gcc" or nil
+if cc then
+  local copy = vim.fn.tempname()
+  vim.system({ "cp", "-r", dir, copy }):wait()
+  vim.fn.writefile(vim.list_extend(c_header("Entry point"), { "", "#include <errno.h>",
+    '#include "../include/demo.h"', "", "int main(void)", "{", "    errno = ENOENT;",
+    '    print_error_message("usage");', '    return print_error("file");', "}" }), copy .. "/src/main.c")
+  local built = vim.system({ "make", "-C", copy, "CC=" .. cc, "CFLAGS=-Wall -Wextra -Werror", "LDLIBS=-lmy" },
+    { text = true }):wait()
+  assert(built.code == 0, built.stdout .. built.stderr)
+  local ran = vim.system({ copy .. "/demo" }, { text = true }):wait()
+  h.assert_equal({ ran.code, ran.stderr, ran.stdout }, { 84, "demo: usage\ndemo: file: No such file or directory\n",
+    "" }, "print_error")
+  vim.fn.delete(copy, "rf")
+else
+  print("Skipping the project build test: no C compiler")
 end
 h.assert_equal(project.state(dir).header, "include/demo.h", "project header remembered")
 
@@ -111,7 +164,7 @@ vim.fn.writefile({ "NAME = changed" }, dir .. "/Makefile")
 vim.cmd("EpitechNew demo")
 h.assert_equal(read("Makefile"), { "NAME = changed" }, "refused when a Makefile exists")
 vim.cmd("EpitechNew! demo")
-h.assert_equal(read("Makefile")[12], "NAME = demo", ":EpitechNew! overwrites")
+h.assert_equal(read("Makefile")[16], "NAME = demo", ":EpitechNew! overwrites")
 
 -- :EpitechNewFile: header, SRC line, opened. A header gets a guard.
 vim.system({ "git", "init", "-q" }, { cwd = dir }):wait()
@@ -121,14 +174,15 @@ end
 vim.cmd("EpitechNewFile src/parse_args.c")
 h.assert_equal(vim.api.nvim_buf_get_name(0), dir .. "/src/parse_args.c", "new file opened")
 h.assert_equal(read("src/parse_args.c"), c_header("Argument parsing"), "new file header")
-h.assert_equal(vim.list_slice(read("Makefile"), 14, 15), { "SRC = src/main.c \\", "\t\tsrc/parse_args.c" },
+h.assert_equal(vim.list_slice(read("Makefile"), 18, 20), { "SRC = src/main.c \\", "\t\tsrc/print_error.c \\",
+  "\t\tsrc/parse_args.c" },
   "added to the SRC list")
 vim.cmd("EpitechNewFile include/parse_args.h")
 h.assert_equal(read("include/parse_args.h"), vim.list_extend(c_header("Argument parsing"), {
   "", "#ifndef PARSE_ARGS_H_", "    #define PARSE_ARGS_H_", "", "#endif",
 }), "new header with a guard")
 vim.cmd("EpitechNewFile tests/test_parse_args.c")
-h.assert_equal(vim.list_slice(read("Makefile"), 19, 20), { "TEST_SRC = tests/test_demo.c \\",
+h.assert_equal(vim.list_slice(read("Makefile"), 24, 25), { "TEST_SRC = tests/test_demo.c \\",
   "\t\ttests/test_parse_args.c" }, "tests go to TEST_SRC")
 h.assert_equal(#vim.tbl_filter(function(line)
   return line:find("parse_args.h", 1, true) ~= nil
