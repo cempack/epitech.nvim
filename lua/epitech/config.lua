@@ -38,6 +38,8 @@ M.defaults = {
   clangd = { fix_includes = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   make = { keymap = "<leader>cM" },
+  -- fclean: clean up after the tests, as tests_run does.
+  tests = { keymap = "<leader>cT", coverage = true, fclean = true },
   scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
 }
 

@@ -110,6 +110,8 @@ diagnostics, meters, hints and fixes below are for.
 | `:EpitechUnignore [file\|project]` | Show them again |
 | `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
 | `<leader>cM`, `:EpitechMake [target]` | Run make; errors, warnings and Banana in the quickfix list |
+| `<leader>cT`, `:EpitechTest` | Run the Criterion tests; failures in the quickfix list, coverage signs |
+| `:EpitechCoverage [on\|off]` | Show or hide the coverage signs |
 | `:EpitechHooks [remove]` | Install (or remove) the pre-push hook |
 | `:EpitechLazygit [remove]` | Add the check to lazygit on `B` (or remove it) |
 

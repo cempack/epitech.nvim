@@ -48,6 +48,7 @@ run split
 run snippets
 run check
 run make
+run tests
 run ignore
 run hooks
 run header-filetypes

@@ -142,6 +142,21 @@ function M.setup(opts)
     require("epitech.make").make({})
   end, "Epitech Make")
 
+  command("EpitechTest", function()
+    require("epitech.tests").run()
+  end, "Run the unit tests and list the failures")
+  keymap(options.tests.keymap, function()
+    require("epitech.tests").run()
+  end, "Epitech Test")
+  command("EpitechCoverage", function(args)
+    require("epitech.tests").toggle(args.args ~= "" and args.args or nil)
+  end, "Show or hide the coverage signs", {
+    nargs = "?",
+    complete = function()
+      return { "on", "off" }
+    end,
+  })
+
   command("EpitechMoveTo", function(args)
     require("epitech.split").move_to(args.args, args.line1 - 1, args.line2 - 1)
   end, "Move the selected functions to another file", { nargs = 1, range = true, complete = "file" })
@@ -208,6 +223,7 @@ function M.setup(opts)
   require("epitech.lsp").setup(options)
   require("epitech.banana").setup(options)
   require("epitech.clangd").setup(options)
+  require("epitech.tests").setup()
   require("epitech.budget").setup(options)
   require("epitech.hints").setup(options)
   require("epitech.hints.makefile").setup(options)
