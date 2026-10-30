@@ -70,14 +70,14 @@ Requirements:
   the single blank line after a function's declarations, trailing spaces, and
   preprocessor nesting (C-G3). The Epitech header is kept as is.
   A long line wraps after a comma or before `&&`/`||`, never right after a
-  call's `(`, and every wrapped line sits exactly one level below its
-  statement, however deep the call it continues: Banana reports anything
-  deeper (`level 4 indentation (should be 3)`).
+  call's `(`, and a wrapped line sits one level below its statement per
+  parenthesis still open where it starts, which is how Banana measures it
+  (`level 3 indentation (should be 4)` otherwise):
 
   ```c
           if (parse_options(argc, &parsed_arguments, argv, options) == -1
               || parse_file_arguments(argc, &parsed_arguments, argv,
-              file_arguments) == -1) {
+                  file_arguments) == -1) {
   ```
 - `<leader>cH` / `:EpitechHeader` inserts an Epitech header using the current
   filetype's comment syntax (C, Makefile, shell, Python, Lua, HTML and more).

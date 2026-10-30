@@ -220,4 +220,23 @@ cleanup()
 if #failures > 0 then
   error("Banana disagrees with the plugin on:\n  " .. table.concat(failures, "\n  "))
 end
+-- C-L2 on wrapped lines: one level per parenthesis open at the line's start
+-- (Elliot's report on `|| g(a,` / `b) == -1)`), and the formatter's guess for
+-- a wrapped line outside any parenthesis: one level down.
+local function wrapped_l2(name, lines)
+  local helper = { "static int g(int x)", "{", "    return x;", "}", "" }
+  return has(check(name, vim.list_extend(helper, lines)), "C-L2")
+end
+local function condition(indent)
+  return { "int f(int a, int b)", "{", "    if (g(a) == -1", "        || g(a", indent .. "+ b) == -1) {", "        return 1;",
+    "    }", "    return 0;", "}" }
+end
+report("C-L2 inside two parentheses, two levels down", wrapped_l2("wrap_two.c", condition("            ")), false)
+report("C-L2 inside two parentheses, one level down", wrapped_l2("wrap_one.c", condition("        ")), true)
+local function sum(indent)
+  return { "int f(int a, int b)", "{", "    int x = 0;", "", "    x = a", indent .. "+ b;", "    return x;", "}" }
+end
+report("C-L2 outside parentheses, one level down", wrapped_l2("wrap_plus.c", sum("        ")), false)
+report("C-L2 outside parentheses, same level", wrapped_l2("wrap_same.c", sum("    ")), nil)
+
 print("Calibration matches Banana")

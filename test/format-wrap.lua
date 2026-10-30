@@ -18,9 +18,12 @@ local function formatted(name, lines)
   return once
 end
 
--- C-L2: every wrapped line one level below its statement's first line, never
--- deeper ("level 4 indentation (should be 3)"); arguments wrap after a comma,
--- not right after the call's '('; a comparison doesn't sit alone on a line.
+-- C-L2: a wrapped line sits one level below its statement's first line per
+-- parenthesis still open where it starts, as Banana measures it ("level 4
+-- indentation (should be 3)" for `== -1)` inside `if (` only, "level 3
+-- indentation (should be 4)" for `file_arguments) == -1)` inside `if (` and
+-- `parse_file_arguments(`); arguments wrap after a comma, not right after
+-- the call's '('; a comparison doesn't sit alone on a line.
 h.assert_equal(formatted("condition", {
   "int parse(int argc, char **argv)",
   "{",
@@ -38,7 +41,7 @@ h.assert_equal(formatted("condition", {
   "    if (argc > 1) {",
   "        if (parse_options(argc, &parsed_arguments, argv, options) == -1",
   "            || parse_file_arguments(argc, &parsed_arguments, argv,",
-  "            file_arguments) == -1) {",
+  "                file_arguments) == -1) {",
   "            return -1;",
   "        }",
   "    }",
@@ -69,20 +72,23 @@ h.assert_equal(formatted("statements", {
   "}",
 }, "calls, loop conditions and returns")
 
--- Deeply nested calls still end up one level down.
-local deep = formatted("deep", {
+-- Deeply nested calls: one more level per call still open.
+h.assert_equal(vim.list_slice(formatted("deep", {
   "void draw(game_t *game)",
   "{",
   "    if (game->running) {",
   "        while (game->window) {",
-  "            sfRenderWindow_drawSprite(game->window, get_sprite_from_name(game->sprites, compute_sprite_name(game->player->state, game->player->direction)), NULL);",
+  "            sfRenderWindow_drawSprite(game->window, get_sprite_from_name(game->sprites,"
+    .. " compute_sprite_name(game->player->state, game->player->direction)), NULL);",
   "        }",
   "    }",
   "}",
-})
-for i = 6, #deep - 3 do
-  h.assert_equal(deep[i]:match("^ *"), string.rep(" ", 16), "deep: line " .. i .. " one level below its statement")
-end
+}), 5, 8), {
+  "            sfRenderWindow_drawSprite(game->window,",
+  "                get_sprite_from_name(game->sprites,",
+  "                    compute_sprite_name(game->player->state,",
+  "                        game->player->direction)), NULL);",
+}, "nested calls")
 
 -- A for header, a do while condition and a signature.
 h.assert_equal(formatted("headers", {

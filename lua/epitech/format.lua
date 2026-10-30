@@ -269,13 +269,37 @@ local function joined_line(previous, text)
   end
 end
 
--- C-L2: Banana wants every wrapped line of a statement one level (4 spaces)
--- deeper than the statement's first line, however deep clang-format nests
--- it (`level 4 indentation (should be 3)`). Wrapped lines are moved there,
--- then a line is joined to the one above when it fits in 79 columns (C-F3)
--- and either starts with a comparison or `)`, or follows a line ending with
--- `,` or `(`: once flat, arguments clang-format pushed down for lack of room
--- often fit back. Returns whether the rows changed.
+-- How many ( and [ text opens minus how many it closes, outside string and
+-- character literals.
+local function bracket_delta(text)
+  local delta, i = 0, 1
+  while i <= #text do
+    local char = text:sub(i, i)
+    if char == '"' or char == "'" then
+      i = i + 1
+      while i <= #text and text:sub(i, i) ~= char do
+        i = i + (text:sub(i, i) == "\\" and 2 or 1)
+      end
+    elseif char == "(" or char == "[" then
+      delta = delta + 1
+    elseif char == ")" or char == "]" then
+      delta = delta - 1
+    end
+    i = i + 1
+  end
+  return delta
+end
+
+-- C-L2: Banana wants a wrapped line one level deeper than its statement's
+-- first line per parenthesis still open where it starts: in
+-- `if (a(x) == -1` / `|| b(y,` / `z) == -1) {`, the second line is inside
+-- `if (` (one level) and the third inside `b(` too (two levels); clang-format
+-- nests by its own rules (`level 4 indentation (should be 3)`, `level 3
+-- indentation (should be 4)`). Each wrapped line is moved there, after a
+-- line is joined to the one above when it fits in 79 columns (C-F3) and
+-- either starts with a comparison or `)`, or follows a line ending with `,`
+-- or `(`. A statement that would then pass 79 columns keeps clang-format's
+-- layout. Returns whether the rows changed.
 local function flatten_continuations(buf, comments, root)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local claimed, units = {}, {}
@@ -302,19 +326,30 @@ local function flatten_continuations(buf, comments, root)
     return a.first > b.first
   end)
   for _, unit in ipairs(units) do
-    local indent = lines[unit.first]:match("^ *") .. "    "
+    local base = #lines[unit.first]:match("^ *")
     local new = { lines[unit.first] }
+    local depth = bracket_delta(lines[unit.first])
+    local unit_joined, too_long = false, false
     for row = unit.first + 1, unit.last do
       local text = vim.trim(lines[row])
       local line = joined_line(new[#new], text)
       if line then
         new[#new] = line
-        joined = true
+        unit_joined = true
       else
-        new[#new + 1] = indent .. text
+        -- calibrate: a wrapped line outside any parenthesis (`x = a` then
+        -- `+ b;`) is guessed one level down, not at the statement's level.
+        new[#new + 1] = string.rep(" ", base + 4 * math.max(1, depth)) .. text
+        too_long = too_long or #new[#new] > 79
       end
+      depth = depth + bracket_delta(text)
     end
     local old = vim.list_slice(lines, unit.first, unit.last)
+    if too_long then
+      new = old
+    elseif unit_joined then
+      joined = true
+    end
     if not vim.deep_equal(new, old) then
       changed = true
       for _ = unit.first, unit.last do
