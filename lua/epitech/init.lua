@@ -128,6 +128,20 @@ function M.setup(opts)
     end,
   })
 
+  command("EpitechMake", function(args)
+    require("epitech.make").make(args.fargs)
+  end, "Run make and list the errors", {
+    nargs = "*",
+    complete = function(lead)
+      return vim.tbl_filter(function(target)
+        return vim.startswith(target, lead)
+      end, require("epitech.make").targets())
+    end,
+  })
+  keymap(options.make.keymap, function()
+    require("epitech.make").make({})
+  end, "Epitech Make")
+
   command("EpitechMoveTo", function(args)
     require("epitech.split").move_to(args.args, args.line1 - 1, args.line2 - 1)
   end, "Move the selected functions to another file", { nargs = 1, range = true, complete = "file" })

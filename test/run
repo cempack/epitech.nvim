@@ -47,6 +47,7 @@ run lib
 run split
 run snippets
 run check
+run make
 run ignore
 run hooks
 run header-filetypes

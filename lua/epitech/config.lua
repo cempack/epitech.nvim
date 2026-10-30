@@ -37,6 +37,7 @@ M.defaults = {
   fixes = { enabled = true },
   clangd = { fix_includes = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
+  make = { keymap = "<leader>cM" },
   scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
 }
 

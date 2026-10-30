@@ -109,6 +109,7 @@ diagnostics, meters, hints and fixes below are for.
 | `:EpitechIgnore [file\|project]` | Silence the warnings for this file (default) or the whole project |
 | `:EpitechUnignore [file\|project]` | Show them again |
 | `<leader>cB`, `:EpitechCheck [untrack]` | Check the whole project (or untrack build files) |
+| `<leader>cM`, `:EpitechMake [target]` | Run make; errors, warnings and Banana in the quickfix list |
 | `:EpitechHooks [remove]` | Install (or remove) the pre-push hook |
 | `:EpitechLazygit [remove]` | Add the check to lazygit on `B` (or remove it) |
 
