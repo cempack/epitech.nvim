@@ -207,6 +207,53 @@ local ok, err = pcall(function()
   local macro_checked = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", header_name }, { text = true }):wait()
   assert(macro_checked.code == 0, macro_checked.stderr)
   assert(macro_checked.stderr == "", macro_checked.stderr)
+
+  -- C-L2: wrapped lines one level below their statement, however deep the
+  -- call they continue ("level 4 indentation (should be 3)").
+  local function epitech_header(description)
+    return { "/*", "** EPITECH PROJECT, " .. os.date("%Y"), "** Formatter test", "** File description:",
+      "** " .. description, "*/", "" }
+  end
+  vim.fn.writefile(vim.list_extend(epitech_header("Wrap declarations"), {
+    "#ifndef WRAP_H_",
+    "    #define WRAP_H_",
+    "",
+    "int parse_options(int argc, int *parsed_arguments, char **argv, char *options);",
+    "int parse_file_arguments(int argc, int *parsed_arguments, char **argv, char **files);",
+    "int get_sprite_from_name(int sprites, int name);",
+    "int compute_sprite_name(int state, int direction);",
+    "",
+    "#endif",
+  }), tempdir .. "/wrap.h")
+  local wrap_input = table.concat(vim.list_extend(epitech_header("Wrapped lines"), {
+    '#include "wrap.h"',
+    "",
+    "int parse(int argc, char **argv, char *options, char **file_arguments)",
+    "{",
+    "    int parsed_arguments = 0;",
+    "",
+    "    if (argc > 1) {",
+    "        if (parse_options(argc, &parsed_arguments, argv, options) == -1 || parse_file_arguments(argc,"
+      .. " &parsed_arguments, argv, file_arguments) == -1) {",
+    "            return -1;",
+    "        }",
+    "    }",
+    "    while (argc > 0) {",
+    "        if (argc > 1) {",
+    "            argc = get_sprite_from_name(parsed_arguments, compute_sprite_name(parsed_arguments, argc)) +"
+      .. " get_sprite_from_name(argc, parsed_arguments);",
+    "        }",
+    "    }",
+    "    return parsed_arguments;",
+    "}",
+    "",
+  }), "\n")
+  local wrap_formatted = vim.system(command, { stdin = wrap_input, text = true }):wait()
+  assert(wrap_formatted.code == 0, wrap_formatted.stderr)
+  vim.fn.writefile(vim.split(wrap_formatted.stdout:gsub("\n$", ""), "\n", { plain = true }), tempdir .. "/wrap.c")
+  local wrap_checked = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", tempdir .. "/wrap.c" },
+    { text = true, cwd = tempdir }):wait()
+  assert(not wrap_checked.stderr:find("[Banana]", 1, true), wrap_formatted.stdout .. wrap_checked.stderr)
 end)
 
 vim.fn.delete(tempdir, "rf")

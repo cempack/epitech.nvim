@@ -50,6 +50,7 @@ run check
 run ignore
 run hooks
 run header-filetypes
+run format-wrap
 
 # These need the real epiclang, which isn't publicly available.
 if command -v epiclang >/dev/null 2>&1; then

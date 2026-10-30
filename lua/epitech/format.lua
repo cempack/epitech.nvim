@@ -153,6 +153,195 @@ local function indent_continuations(buf, comments)
   end
 end
 
+-- The control statements whose header (condition, or a for's three parts)
+-- is a unit of its own, apart from the body.
+local CONTROL = {
+  if_statement = true,
+  while_statement = true,
+  for_statement = true,
+  do_statement = true,
+  switch_statement = true,
+}
+
+-- Statements whose wrapped lines continue one line.
+local SIMPLE = {
+  expression_statement = true,
+  return_statement = true,
+  declaration = true,
+  field_declaration = true,
+}
+
+-- Lines starting with one of these operators are joined to the line above
+-- when they fit: clang-format moves a comparison down when its left side
+-- was wrapped (`file_arguments)` then `== -1) {`), which reads badly. Lines
+-- starting with &&, || or an arithmetic operator stay: the style's own
+-- examples break before them.
+local JOINED_OPERATORS = { "==", "!=", "<=", ">=", "<", ">" }
+
+local function has_type(node, types)
+  if types[node:type()] then
+    return true
+  end
+  for child in node:iter_children() do
+    if has_type(child, types) then
+      return true
+    end
+  end
+  return false
+end
+
+-- The units of continued lines: { first, last } rows (1-based) of each
+-- statement, control header or function signature, outermost first.
+local function continuation_units(root)
+  local units = {}
+  local function add(first, last)
+    if last > first then
+      units[#units + 1] = { first = first + 1, last = last + 1 }
+    end
+  end
+  local function visit(node)
+    local kind = node:type()
+    if CONTROL[kind] then
+      local first = node:range()
+      local last = first
+      local condition = node:field("condition")[1]
+      if kind == "do_statement" and condition then
+        first = condition:range()
+        last = select(3, condition:range())
+      elseif kind == "for_statement" then
+        for child in node:iter_children() do
+          if child:type() == ")" then
+            last = child:range()
+          end
+        end
+      elseif condition then
+        last = select(3, condition:range())
+      end
+      add(first, last)
+      for child in node:iter_children() do
+        if not condition or child:id() ~= condition:id() then
+          visit(child)
+        end
+      end
+    elseif kind == "function_definition" then
+      local declarator = node:field("declarator")[1]
+      if declarator then
+        add(node:range(), select(3, declarator:range()))
+      end
+      local body = node:field("body")[1]
+      if body then
+        visit(body)
+      end
+    elseif SIMPLE[kind] and not has_type(node, {
+      field_declaration_list = true,
+      enumerator_list = true,
+      initializer_list = true,
+      compound_statement = true,
+    }) then
+      add(node:range(), select(3, node:range()))
+    else
+      for child in node:iter_children() do
+        visit(child)
+      end
+    end
+  end
+  visit(root)
+  return units
+end
+
+local function starts_with_operator(text, operators)
+  for _, operator in ipairs(operators) do
+    if vim.startswith(text, operator .. " ") then
+      return true
+    end
+  end
+  return false
+end
+
+-- C-L2: Banana wants every wrapped line of a statement one level (4 spaces)
+-- deeper than the statement's first line, however deep clang-format nests
+-- it (`level 4 indentation (should be 3)`). Wrapped lines are moved there,
+-- then a line is joined to the one above when it fits in 79 columns (C-F3)
+-- and either starts with a comparison or `)`, or follows a line ending with
+-- `,` or `(`: once flat, arguments clang-format pushed down for lack of room
+-- often fit back. Returns whether the rows changed.
+local function flatten_continuations(buf, comments, root)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local claimed, units = {}, {}
+  for _, unit in ipairs(continuation_units(root)) do
+    local usable = true
+    for row = unit.first, unit.last do
+      if claimed[row] or comments[row] or lines[row]:match("^%s*#") then
+        usable = false
+      end
+    end
+    if usable then
+      for row = unit.first, unit.last do
+        claimed[row] = true
+      end
+      units[#units + 1] = unit
+    end
+  end
+
+  local changed, joined = false, false
+  -- Bottom-up, so joining lines keeps the rows of the units above valid.
+  table.sort(units, function(a, b)
+    return a.first > b.first
+  end)
+  for _, unit in ipairs(units) do
+    local indent = lines[unit.first]:match("^ *") .. "    "
+    local rows = {}
+    for row = unit.first + 1, unit.last do
+      rows[#rows + 1] = indent .. vim.trim(lines[row])
+    end
+    local i = 1
+    while i < #rows do
+      local previous, text = rows[i], vim.trim(rows[i + 1])
+      local glue = (previous:match("[%(%[]$") or text:match("^[%)%],;]")) and "" or " "
+      local fits = #previous + #glue + #text <= 79
+      local wanted = starts_with_operator(text, JOINED_OPERATORS) or text:match("^%)")
+        or previous:match("[,%(]$")
+      if fits and wanted then
+        rows[i] = previous .. glue .. text
+        table.remove(rows, i + 1)
+        joined = true
+      else
+        i = i + 1
+      end
+    end
+    -- The statement's first line may take a joined line too.
+    local head = lines[unit.first]
+    while rows[1] do
+      local text = vim.trim(rows[1])
+      local glue = (head:match("[%(%[]$") or text:match("^[%)%],;]")) and "" or " "
+      if #head + #glue + #text <= 79 and (starts_with_operator(text, JOINED_OPERATORS) or text:match("^%)")
+        or head:match("[,%(]$")) then
+        head = head .. glue .. text
+        table.remove(rows, 1)
+        joined = true
+      else
+        break
+      end
+    end
+    local new = vim.list_extend({ head }, rows)
+    local old = vim.list_slice(lines, unit.first, unit.last)
+    if not vim.deep_equal(new, old) then
+      changed = true
+      for _ = unit.first, unit.last do
+        table.remove(lines, unit.first)
+      end
+      for k, line in ipairs(new) do
+        table.insert(lines, unit.first + k - 1, line)
+      end
+    end
+  end
+
+  if changed then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  end
+  return joined
+end
+
 -- Comment reflow continues "**" comments with a single "*"; keep the Epitech
 -- "**" prefix on every line of a comment that uses it.
 local function keep_comment_prefix(buf, comments)
@@ -294,6 +483,9 @@ function M.format_buffer(buf)
   if comments then
     indent_continuations(buf, comments)
     keep_comment_prefix(buf, comments)
+    if flatten_continuations(buf, comments, root) then
+      comments, root = comment_rows(buf)
+    end
     normalize_function_blank_lines(buf, comments, root)
   end
 end

@@ -69,6 +69,16 @@ Requirements:
   `#define` bodies), 80-column line and comment wrapping, function separation,
   the single blank line after a function's declarations, trailing spaces, and
   preprocessor nesting (C-G3). The Epitech header is kept as is.
+  A long line wraps after a comma or before `&&`/`||`, never right after a
+  call's `(`, and every wrapped line sits exactly one level below its
+  statement, however deep the call it continues: Banana reports anything
+  deeper (`level 4 indentation (should be 3)`).
+
+  ```c
+          if (parse_options(argc, &parsed_arguments, argv, options) == -1
+              || parse_file_arguments(argc, &parsed_arguments, argv,
+              file_arguments) == -1) {
+  ```
 - `<leader>cH` / `:EpitechHeader` inserts an Epitech header using the current
   filetype's comment syntax (C, Makefile, shell, Python, Lua, HTML and more).
 - `<leader>cG` / `:EpitechGuard` wraps a `.h` file in an include guard named

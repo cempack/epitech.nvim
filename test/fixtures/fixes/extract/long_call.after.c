@@ -13,8 +13,8 @@ int handle_everything(char const *configuration_path, int maximum_iterations)
     int processed_entries_count = 0;
 
     if (maximum_iterations > 0) {
-        process_configuration_entries_until_limit(
-            &processed_entries_count, maximum_iterations, configuration_path);
+        process_configuration_entries_until_limit(&processed_entries_count,
+            maximum_iterations, configuration_path);
     }
     return processed_entries_count;
 }

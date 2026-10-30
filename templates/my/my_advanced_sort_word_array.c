@@ -19,8 +19,8 @@ static int sort_pass(char **tab, int (*cmp)(char const *, char const *))
     return swapped;
 }
 
-int my_advanced_sort_word_array(
-    char **tab, int (*cmp)(char const *, char const *))
+int my_advanced_sort_word_array(char **tab,
+    int (*cmp)(char const *, char const *))
 {
     int swapped = 1;
 

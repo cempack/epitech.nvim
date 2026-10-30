@@ -40,8 +40,8 @@ h.assert_equal(vim.list_slice(all["lib/my/my_strlen.c"], 1, 8), {
 }, "an Epitech header on each file")
 h.assert_equal(vim.list_slice(all["include/my.h"], 5, 13), {
   "** Prototypes of libmy", "*/", "", "#ifndef MY_H_", "    #define MY_H_", "",
-  "char *concat_params(int argc, char **argv);", "int my_advanced_sort_word_array(",
-  "    char **tab, int (*cmp)(char const *, char const *));",
+  "char *concat_params(int argc, char **argv);", "int my_advanced_sort_word_array(char **tab,",
+  "    int (*cmp)(char const *, char const *));",
 }, "my.h, long prototypes wrapped")
 h.assert_equal(vim.list_slice(lib.makefile("demo", { "my_putstr", "my_strlen" }), 5, 14), {
   "## Makefile of libmy", "##", "", "CC = gcc", "", "NAME = libmy.a", "", "SRC = my_putstr.c \\",
