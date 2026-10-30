@@ -165,6 +165,7 @@ local CONTROL = {
 
 -- Statements whose wrapped lines continue one line.
 local SIMPLE = {
+  type_definition = true,
   expression_statement = true,
   return_statement = true,
   declaration = true,
@@ -258,6 +259,16 @@ local function starts_with_operator(text, operators)
   return false
 end
 
+-- previous and the wrapped line text on one line, or nil when they don't
+-- fit in 79 columns (C-F3) or the break is one to keep.
+local function joined_line(previous, text)
+  local glue = (previous:match("[%(%[]$") or text:match("^[%)%],;]")) and "" or " "
+  local wanted = starts_with_operator(text, JOINED_OPERATORS) or text:match("^%)") or previous:match("[,%(]$")
+  if wanted and #previous + #glue + #text <= 79 then
+    return previous .. glue .. text
+  end
+end
+
 -- C-L2: Banana wants every wrapped line of a statement one level (4 spaces)
 -- deeper than the statement's first line, however deep clang-format nests
 -- it (`level 4 indentation (should be 3)`). Wrapped lines are moved there,
@@ -271,7 +282,9 @@ local function flatten_continuations(buf, comments, root)
   for _, unit in ipairs(continuation_units(root)) do
     local usable = true
     for row = unit.first, unit.last do
-      if claimed[row] or comments[row] or lines[row]:match("^%s*#") then
+      -- A line ending in a backslash may continue a string literal, whose
+      -- next line's spaces are part of the string (and C-G6 forbids it).
+      if claimed[row] or comments[row] or lines[row]:match("^%s*#") or lines[row]:match("\\$") then
         usable = false
       end
     end
@@ -290,40 +303,17 @@ local function flatten_continuations(buf, comments, root)
   end)
   for _, unit in ipairs(units) do
     local indent = lines[unit.first]:match("^ *") .. "    "
-    local rows = {}
+    local new = { lines[unit.first] }
     for row = unit.first + 1, unit.last do
-      rows[#rows + 1] = indent .. vim.trim(lines[row])
-    end
-    local i = 1
-    while i < #rows do
-      local previous, text = rows[i], vim.trim(rows[i + 1])
-      local glue = (previous:match("[%(%[]$") or text:match("^[%)%],;]")) and "" or " "
-      local fits = #previous + #glue + #text <= 79
-      local wanted = starts_with_operator(text, JOINED_OPERATORS) or text:match("^%)")
-        or previous:match("[,%(]$")
-      if fits and wanted then
-        rows[i] = previous .. glue .. text
-        table.remove(rows, i + 1)
+      local text = vim.trim(lines[row])
+      local line = joined_line(new[#new], text)
+      if line then
+        new[#new] = line
         joined = true
       else
-        i = i + 1
+        new[#new + 1] = indent .. text
       end
     end
-    -- The statement's first line may take a joined line too.
-    local head = lines[unit.first]
-    while rows[1] do
-      local text = vim.trim(rows[1])
-      local glue = (head:match("[%(%[]$") or text:match("^[%)%],;]")) and "" or " "
-      if #head + #glue + #text <= 79 and (starts_with_operator(text, JOINED_OPERATORS) or text:match("^%)")
-        or head:match("[,%(]$")) then
-        head = head .. glue .. text
-        table.remove(rows, 1)
-        joined = true
-      else
-        break
-      end
-    end
-    local new = vim.list_extend({ head }, rows)
     local old = vim.list_slice(lines, unit.first, unit.last)
     if not vim.deep_equal(new, old) then
       changed = true

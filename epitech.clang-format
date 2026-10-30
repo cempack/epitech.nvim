@@ -15,9 +15,10 @@ ContinuationIndentWidth: 4
 # Wrap a call's arguments after a comma rather than right after its '('
 # (`f(` alone on a line, then every argument one level down). The Neovim
 # formatter then puts every wrapped line one level below its statement,
-# which is what Banana checks (C-L2).
-PenaltyBreakOpenParenthesis: 1000
-PenaltyBreakBeforeFirstCallParameter: 1000
+# which is what Banana checks (C-L2). Higher values make clang-format break
+# inside a parameter instead (`char const` / `*name`).
+PenaltyBreakOpenParenthesis: 200
+PenaltyBreakBeforeFirstCallParameter: 200
 # The return type stays on the line of the function name.
 PenaltyReturnTypeOnItsOwnLine: 10000
 TabWidth: 4

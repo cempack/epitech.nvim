@@ -116,6 +116,15 @@ h.assert_equal(formatted("headers", {
   "}",
 }, "for, do while and signature")
 
+-- A parameter is never split between its type and its name (a too high
+-- penalty on breaking after '(' did that), and typedefs are flattened too.
+h.assert_equal(formatted("typedef", {
+  "typedef int (*very_long_function_pointer_type_name_t)(char const *first_argument, int second_argument, void *third);",
+}), {
+  "typedef int (*very_long_function_pointer_type_name_t)(",
+  "    char const *first_argument, int second_argument, void *third);",
+}, "function pointer typedef")
+
 -- Initializer lists keep clang-format's layout; a comment inside a wrapped
 -- statement leaves it alone (joining a line after it would comment it out).
 local untouched = {
