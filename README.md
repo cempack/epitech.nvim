@@ -295,7 +295,10 @@ C files, headers and Makefiles. It offers fixes for coding style problems as
 code actions, so they appear in `<leader>ca` (`vim.lsp.buf.code_action()`)
 next to clangd's. It's why `:checkhealth vim.lsp` and `:LspInfo` list a
 client named `epitech`. A fix is only offered when its rewrite keeps the
-program's meaning. Turn the menu off with `fixes = { enabled = false }`.
+program's meaning. When a fix makes a line longer than 79 columns (`void`
+added, a branch indented into a `switch`), the line comes out wrapped the
+way the formatter would wrap it. Turn the menu off with
+`fixes = { enabled = false }`.
 
 - **Add void** (C-F6): `int print_help()` becomes `int print_help(void)`, for
   definitions, prototypes, `main()` and pointer-returning functions (function

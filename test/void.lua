@@ -45,4 +45,21 @@ h.assert_equal(require("epitech.fixes").fix_all("C-F6", root), "0 functions fixe
   .. "src/dirty.c, src/open.c", "nothing left to fix")
 cleanup()
 
+-- C-F3: `void` pushing the file's last line past 79 columns gets it wrapped
+-- like the formatter does; an unformatted file keeps its other lines.
+local function add_void(name, lines)
+  local buf = h.buffer("/tmp/epitech_void_" .. name .. ".h", lines)
+  local actions, client = h.code_actions(buf, h.rows(#lines - 1))
+  h.apply_action(h.actions_for(actions, "C-F6")[1], client)
+  return vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+end
+local long = "char *get_the_name_of_the_configuration_file_from_the_environment_variable();"
+h.assert_equal(add_void("short", { "int f(void);", "char *get_the_configuration_file_name();" }),
+  { "int f(void);", "char *get_the_configuration_file_name(void);" }, "short enough: the plain edit")
+h.assert_equal(add_void("last", { "int f(void);", long }), { "int f(void);",
+  "char *get_the_name_of_the_configuration_file_from_the_environment_variable(", "    void);" }, "last line wrapped")
+h.assert_equal(add_void("unformatted", { "int   f( void );", long }), { "int   f( void );",
+  "char *get_the_name_of_the_configuration_file_from_the_environment_variable(void);" },
+  "a file the formatter would change elsewhere keeps the plain edit")
+
 print("Epitech void fix tests passed")

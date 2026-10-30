@@ -12,6 +12,8 @@ local TITLE = "Convert to switch (C-C1)"
 h.check_fix("switch", "flags", 2, TITLE, "C-C1")
 h.check_fix("switch", "numbers", 2, TITLE, "C-C1")
 h.check_fix("switch", "or", 4, TITLE, "C-C1")
+-- C-F3: a line the switch indents past 79 columns is wrapped by the formatter.
+h.check_fix("switch", "long_line", 9, TITLE, "C-C1")
 
 -- Refusals.
 local function chain(conditions, body)

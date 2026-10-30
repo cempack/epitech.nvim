@@ -94,9 +94,56 @@ function M.touches(node, range)
   return start_row <= range["end"].line and end_row >= range.start.line
 end
 
+-- Number of equal lines at the start and at the end of two lists of lines
+-- (the end count never overlaps the start).
+local function common_ends(a, b)
+  local first = 0
+  while first < #a and first < #b and a[first + 1] == b[first + 1] do
+    first = first + 1
+  end
+  local last = 0
+  while last < #a - first and last < #b - first and a[#a - last] == b[#b - last] do
+    last = last + 1
+  end
+  return first, last
+end
+
+-- A fix that lengthens or indents a line (`void`, `const`, a case body) can
+-- push it past 79 columns (C-F3), and the formatter would then rewrap what
+-- the fix wrote (ground rule 7). Then the edits become one edit to the
+-- formatted text, provided the formatter changed nothing outside the lines
+-- the fix touched (a file that wasn't formatted is left as it was).
+local function wrapped_edits(buf, edits)
+  local before = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local scratch = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(scratch, 0, -1, false, before)
+  vim.lsp.util.apply_text_edits(vim.deepcopy(edits), scratch, "utf-8")
+  local after = vim.api.nvim_buf_get_lines(scratch, 0, -1, false)
+  vim.api.nvim_buf_delete(scratch, { force = true })
+  local first, last = common_ends(before, after)
+  local long = false
+  for row = first + 1, #after - last do
+    long = long or #after[row] > 79
+  end
+  if not long then
+    return edits
+  end
+  local formatted = require("epitech.util").format_lines(after)
+  local kept_first, kept_last = common_ends(after, formatted)
+  if kept_first < first or kept_last < last then
+    return edits
+  end
+  return { {
+    range = M.position_range(first, 0, #before - last, 0),
+    newText = table.concat(vim.list_slice(formatted, first + 1, #formatted - last), "\n")
+      .. (#formatted - last > first and "\n" or ""),
+  } }
+end
+
 -- A code action that applies text edits to buf (edits: { range, newText }).
 -- `rule` goes in data so tests and :EpitechFixAll can tell actions apart.
 function M.action(title, rule, buf, edits, kind)
+  edits = wrapped_edits(buf, edits)
   return {
     title = title,
     kind = kind or "quickfix",
