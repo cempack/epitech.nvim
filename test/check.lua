@@ -124,6 +124,15 @@ h.assert_equal(vim.fn.filereadable(root .. "/main.o"), 1, "the file itself stays
 h.assert_equal(vim.fn.readfile(root .. "/.gitignore"), { "*.o" }, ".gitignore updated")
 h.assert_equal(check.unwanted_pattern("#notes.c#"), "#*#", "emacs autosave pattern")
 
+-- C-O4: Makefile, README.md and LICENSE keep their names anywhere, and the
+-- directories above them are still checked.
+h.assert_equal(vim.tbl_map(check.format_entry, check.repository({
+  "Makefile", "lib/my/Makefile", "bootstrap/lib/my/Makefile", "docs/README.md", "Lib/Makefile", "src/Main.c",
+})), {
+  "Lib/Makefile:1:1: [Minor] Lib/ isn't snake_case (C-O4)",
+  "src/Main.c:1:1: [Minor] Main.c isn't snake_case (C-O4)",
+}, "Makefiles in subdirectories")
+
 vim.fn.chdir("/")
 cleanup()
 print("Epitech project check tests passed")

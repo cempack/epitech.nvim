@@ -57,10 +57,12 @@ function M.repository(files)
     elseif extension and vim.list_contains(M.foreign, extension) then
       result[#result + 1] = entry(file, 1, 1, "major", "C-O2", "C sources use the .c and .h extensions")
     end
-    if not vim.list_contains(M.name_exceptions, file) and not unwanted then
+    if not unwanted then
       local segments = vim.split(file, "/", { plain = true })
       for i, segment in ipairs(segments) do
-        if segment:sub(1, 1) == "." then
+        -- A Makefile is named Makefile wherever it is (lib/my/Makefile); its
+        -- directories are still checked.
+        if segment:sub(1, 1) == "." or (i == #segments and vim.list_contains(M.name_exceptions, segment)) then
           break
         end
         local name = i == #segments and segment:gsub("%.[^.]+$", "") or segment

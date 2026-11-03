@@ -1008,6 +1008,8 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 
 - **README rewritten around the workflow** (Elliot: less filler, show the features and how to use them): a pitch with the meters as seen in the editor, install and a requirements table, then Start a project, Write, Fix (a before → after table), Restructure, Build and test, Deliver, a commands and keys table, the full defaults, snippets and the Lua API; 780 lines down to about 370. Details that only explain edge cases live in this file's entries and the code comments. Commit `docs: rewrite the README around what you do with the plugin`.
 
+- **C-O4 skips Makefiles in subdirectories** (Elliot's report: `lib/my/Makefile isn't snake_case`). `check.repository` compared `name_exceptions` with the whole path, so only a root `Makefile` was skipped; the exceptions now apply to the last path segment, and the directories above are still checked. Tested in `test/check.lua`. Commit `fix: don't flag Makefiles in subdirectories as non-snake_case`.
+
 ---
 
 ## 14. Not in scope
