@@ -172,8 +172,16 @@ function M.makefile(name, sources, tests, ldlibs, with_lib)
     "",
     "re: fclean $(NAME)",
     "",
-    ".PHONY: all clean fclean re unit_tests tests_run",
   })
+  -- Debug information only on demand: `make debug` rebuilds everything with
+  -- it (a target's variables apply to what it builds), plain `make` stays
+  -- as the moulinette builds it.
+  local phony = "all clean fclean re unit_tests tests_run"
+  if options.debug_cflags ~= "" then
+    vim.list_extend(lines, { "debug: CFLAGS += " .. options.debug_cflags, "debug: re", "" })
+    phony = phony .. " debug"
+  end
+  lines[#lines + 1] = ".PHONY: " .. phony
   return lines
 end
 

@@ -43,7 +43,8 @@ local function makefile_tail(unit_tests)
     "", "tests_run: unit_tests", "\t./unit_tests; status=$$?; \\", "\t$(MAKE) --no-print-directory fclean; \\",
     "\texit $$status", "", "clean:", "\trm -f $(OBJ)", "\trm -f $(OBJ:.o=.gcno) $(OBJ:.o=.gcda)",
     "\trm -f *.gcno *.gcda", "", "fclean: clean", "\trm -f $(NAME)", "\trm -f unit_tests", "",
-    "re: fclean $(NAME)", "", ".PHONY: all clean fclean re unit_tests tests_run",
+    "re: fclean $(NAME)", "", "debug: CFLAGS += -g3", "debug: re", "",
+    ".PHONY: all clean fclean re unit_tests tests_run debug",
   })
 end
 -- The program builds lib/my (for the error file) before linking it.
@@ -59,7 +60,8 @@ h.assert_equal(read("Makefile"), {
   "\t./unit_tests; status=$$?; \\", "\t$(MAKE) --no-print-directory fclean; \\", "\texit $$status", "", "clean:",
   "\t$(MAKE) -C lib/my clean", "\trm -f $(OBJ)", "\trm -f $(OBJ:.o=.gcno) $(OBJ:.o=.gcda)", "\trm -f *.gcno *.gcda",
   "", "fclean: clean", "\t$(MAKE) -C lib/my fclean", "\trm -f $(NAME)", "\trm -f unit_tests", "",
-  "re: fclean $(NAME)", "", ".PHONY: all clean fclean re unit_tests tests_run",
+  "re: fclean $(NAME)", "", "debug: CFLAGS += -g3", "debug: re", "",
+  ".PHONY: all clean fclean re unit_tests tests_run debug",
 }, "Makefile with libmy and the picked libraries")
 -- Without the error file: no lib/my either.
 require("epitech.config").setup({ scaffold = { error_file = false } })
@@ -153,11 +155,30 @@ if cc then
   local ran = vim.system({ copy .. "/demo" }, { text = true }):wait()
   h.assert_equal({ ran.code, ran.stderr, ran.stdout }, { 84, "demo: usage\ndemo: file: No such file or directory\n",
     "" }, "print_error")
+  -- Debug information only from make debug (no CFLAGS on the command line:
+  -- it would override the rule's own).
+  if vim.fn.executable("readelf") == 1 then
+    local function has_debug()
+      local sections = vim.system({ "readelf", "-S", copy .. "/demo" }, { text = true }):wait().stdout or ""
+      return sections:find(".debug_info", 1, true) ~= nil
+    end
+    vim.system({ "make", "-C", copy, "re", "CC=" .. cc, "LDLIBS=-lmy" }):wait()
+    h.assert_equal(has_debug(), false, "plain make: no debug information")
+    vim.system({ "make", "-C", copy, "debug", "CC=" .. cc, "LDLIBS=-lmy" }):wait()
+    h.assert_equal(has_debug(), true, "make debug: debug information")
+  end
   vim.fn.delete(copy, "rf")
 else
   print("Skipping the project build test: no C compiler")
 end
 h.assert_equal(project.state(dir).header, "include/demo.h", "project header remembered")
+
+-- debug_cflags = "": no debug rule.
+require("epitech.config").setup({ scaffold = { debug_cflags = "" } })
+local no_debug = require("epitech.scaffold").makefile("demo", { "src/main.c" }, { "tests/test_demo.c" })
+h.assert_equal(no_debug[#no_debug], ".PHONY: all clean fclean re unit_tests tests_run", "no debug rule")
+h.assert_equal(vim.tbl_contains(no_debug, "debug: re"), false, "no debug: re")
+require("epitech.config").setup()
 
 -- A second :EpitechNew refuses; :EpitechNew! overwrites.
 vim.fn.writefile({ "NAME = changed" }, dir .. "/Makefile")

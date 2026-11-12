@@ -1010,6 +1010,8 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 
 - **C-O4 skips Makefiles in subdirectories** (Elliot's report: `lib/my/Makefile isn't snake_case`). `check.repository` compared `name_exceptions` with the whole path, so only a root `Makefile` was skipped; the exceptions now apply to the last path segment, and the directories above are still checked. Tested in `test/check.lua`. Commit `fix: don't flag Makefiles in subdirectories as non-snake_case`.
 
+- **`make debug` in new projects** (Elliot: no `-g3` in the default build). `scaffold.makefile` adds `debug: CFLAGS += $(debug_cflags)` and `debug: re` (a target-specific variable applies to everything the target builds) and `debug` in `.PHONY`; option `scaffold.debug_cflags` (default `-g3`, `""` for no rule). A `CFLAGS=` on make's command line overrides the rule, so the test doesn't pass one. Tested in `test/scaffold.lua` (the rule, its absence, and `readelf` showing `.debug_info` only after `make debug`). Commit `feat: add make debug to new projects`.
+
 ---
 
 ## 14. Not in scope

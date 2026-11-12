@@ -40,7 +40,8 @@ M.defaults = {
   make = { keymap = "<leader>cM" },
   -- fclean: clean up after the tests, as tests_run does.
   tests = { keymap = "<leader>cT", coverage = true, fclean = true },
-  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
+  -- debug_cflags: what `make debug` adds ("" for no debug rule).
+  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", debug_cflags = "-g3", error_file = true },
 }
 
 -- Lists replace the default instead of being merged into it; the value says

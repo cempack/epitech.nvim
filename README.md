@@ -70,7 +70,7 @@ commit. It first asks which libraries to link (CSFML graphics, audio,
 network, ncurses, math), then writes:
 
 ```
-Makefile              CC = epiclang, SRC/TEST_SRC lists, all clean fclean re unit_tests tests_run, LDLIBS
+Makefile              CC = epiclang, SRC/TEST_SRC lists, all clean fclean re unit_tests tests_run debug, LDLIBS
 include/my_ls.h       guard, PROGRAM_NAME, EXIT_ERROR 84
 src/main.c            int main(void)
 src/print_error.c     print_error(path) → "my_ls: path: No such file or directory", returns 84
@@ -78,6 +78,9 @@ lib/my/               only the libmy functions the project uses (my_strlen here)
 tests/test_my_ls.c    a Criterion test
 .gitignore            build products, vgcore, *.gcda…
 ```
+
+`make` builds without debug information, as the moulinette does;
+`make debug` rebuilds everything with `-g3` for gdb and valgrind.
 
 `:EpitechNew libmy.a` makes a library instead (`ar rc`, tests linked
 against it).
@@ -323,7 +326,13 @@ require("epitech").setup({
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   make = { keymap = "<leader>cM" },
   tests = { keymap = "<leader>cT", coverage = true, fclean = true },
-  scaffold = { keymap = "<leader>cN", cc = "epiclang", cflags = "", error_file = true },
+  scaffold = {
+    keymap = "<leader>cN",
+    cc = "epiclang",
+    cflags = "",          -- a CFLAGS line for every build
+    debug_cflags = "-g3", -- what `make debug` adds ("" for no debug rule)
+    error_file = true,
+  },
 })
 ```
 
