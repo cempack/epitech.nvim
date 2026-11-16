@@ -105,7 +105,7 @@ end), "hints refreshed after an edit")
 
 -- §9.6 fix: extract into a macro in the project header.
 local root, cleanup = h.temp_project({
-  ["Makefile"] = { "NAME = demo" },
+  ["Makefile"] = { "NAME = demo", "CPPFLAGS = -I./include" },
   ["include/demo.h"] = { "#ifndef DEMO_H_", "    #define DEMO_H_", "", "int read_all(int fd);", "", "#endif" },
   ["include/other.h"] = { "#ifndef OTHER_H_", "    #define OTHER_H_", "    #define PAGE (4096)", "#endif" },
   ["src/main.c"] = {
@@ -180,7 +180,7 @@ h.assert_equal(notices, { "BUFFER_SIZE is already defined as 4096" }, "redefinit
 
 -- A new project header is created with an Epitech header and a guard.
 local fresh, cleanup_fresh = h.temp_project({
-  ["Makefile"] = { "NAME = fresh" },
+  ["Makefile"] = { "NAME = fresh", "CPPFLAGS = -I./include" },
   ["src/main.c"] = { "int get_width(void)", "{", "    int width = 1920;", "", "    return width;", "}" },
 })
 local fresh_main = h.buffer(fresh .. "/src/main.c", vim.fn.readfile(fresh .. "/src/main.c"))

@@ -201,8 +201,8 @@ function M.error_file(name)
     "",
     "#include <errno.h>",
     "#include <unistd.h>",
-    '#include "../include/my.h"',
-    '#include "../include/' .. base .. '.h"',
+    '#include "my.h"',
+    '#include "' .. base .. '.h"',
     "",
     "static char const *get_error_message(int error)",
     "{",
@@ -294,11 +294,11 @@ function M.templates(name, ldlibs)
   files["include/" .. base .. ".h"] = project_header
 
   if library then
-    files[first_source] = vim.list_extend(c_header(name, base), { "", '#include "../include/' .. base .. '.h"' })
+    files[first_source] = vim.list_extend(c_header(name, base), { "", '#include "' .. base .. '.h"' })
   else
     files["src/main.c"] = vim.list_extend(c_header(name, "Entry point"), {
       "",
-      '#include "../include/' .. base .. '.h"',
+      '#include "' .. base .. '.h"',
       "",
       "int main(void)",
       "{",
@@ -310,7 +310,7 @@ function M.templates(name, ldlibs)
   files["tests/test_" .. base .. ".c"] = vim.list_extend(c_header(name, "Unit tests"), {
     "",
     "#include <criterion/criterion.h>",
-    '#include "../include/' .. base .. '.h"',
+    '#include "' .. base .. '.h"',
     "",
     "Test(" .. base:gsub("[^%w_]", "_") .. ", placeholder)",
     "{",

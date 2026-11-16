@@ -136,4 +136,18 @@ local own = h.buffer(root .. "/src/own.c", { "int my_strcmp(char const *a, char 
 h.assert_equal(#h.code_actions(own, h.rows(7)), 0, "defined in the file")
 cleanup()
 
+-- With CPPFLAGS = -I./include in the Makefile, my.h is included by name.
+root, cleanup = h.temp_project({
+  ["Makefile"] = { "NAME = demo", "", "CPPFLAGS = -I./include", "", "SRC = src/main.c" },
+  ["src/main.c"] = { "int main(void)", "{", '    my_putstr("hi");', "    return 0;", "}" },
+})
+vim.cmd.edit(root .. "/src/main.c")
+buf = vim.api.nvim_get_current_buf()
+actions, client = h.code_actions(buf, h.rows(2))
+client:exec_cmd(actions[1].command, { bufnr = buf })
+h.assert_equal(vim.api.nvim_buf_get_lines(buf, 0, 2, false), { '#include "my.h"', "" }, "my.h included by name")
+h.assert_equal(require("epitech.fixes.lib").include_path(root, root .. "/lib/my/x.c"), "../../include/my.h",
+  "lib/my keeps its path: its Makefile passes no -I")
+cleanup()
+
 print("Epitech libmy tests passed")

@@ -35,7 +35,7 @@ M.defaults = {
   },
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
-  clangd = { fix_includes = true },
+  clangd = { fix_includes = true, include_dirs = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   make = { keymap = "<leader>cM" },
   -- fclean: clean up after the tests, as tests_run does.

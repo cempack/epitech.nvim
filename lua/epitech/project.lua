@@ -223,14 +223,48 @@ function M.include_flags(root, file)
   return flags
 end
 
--- How file includes header: relative to an include directory from the
--- project's flags when the header is in one (include/my.h gives "my.h"),
--- else relative to file's own directory.
+-- The directories the build really passes with -I for file, as absolute
+-- paths: compile_commands.json's when there is one, else the -I flags
+-- written in the root Makefile (CPPFLAGS = -I./include). A flag naming a
+-- variable (-I$(INC)) is skipped. Unlike include_flags, there's no guess:
+-- an #include written against these directories compiles.
+function M.build_include_dirs(root, file)
+  local dirs, seen = {}, {}
+  local function add(dir)
+    dir = vim.fs.normalize(dir:sub(1, 1) == "/" and dir or root .. "/" .. dir)
+    if not seen[dir] then
+      seen[dir] = true
+      dirs[#dirs + 1] = dir
+    end
+  end
+  local entries = read_database(root)
+  if entries and #entries > 0 then
+    for _, flag in ipairs(M.include_flags(root, file)) do
+      local dir = flag:match("^%-I(.+)$")
+      if dir then
+        add(dir)
+      end
+    end
+    return dirs
+  end
+  local makefile = root .. "/Makefile"
+  if vim.fn.filereadable(makefile) == 1 then
+    for _, line in ipairs(vim.fn.readfile(makefile)) do
+      for dir in line:gsub("#.*$", ""):gmatch("%-I%s*([^%s$()]+)") do
+        add(dir)
+      end
+    end
+  end
+  return dirs
+end
+
+-- How file includes header: relative to a directory the build passes with
+-- -I when the header is in one (include/my.h gives "my.h" with
+-- CPPFLAGS = -I./include), else relative to file's own directory.
 function M.include_name(root, file, header_path)
   local best
-  for _, flag in ipairs(M.include_flags(root, file)) do
-    local dir = flag:match("^%-I(.+)$")
-    local relative = dir and require("epitech.util").relative(header_path, dir)
+  for _, dir in ipairs(M.build_include_dirs(root, file)) do
+    local relative = require("epitech.util").relative(header_path, dir)
     if relative and (not best or #relative < #best) then
       best = relative
     end

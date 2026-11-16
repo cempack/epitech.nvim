@@ -126,7 +126,13 @@ end
 local function fix_edits(edits, symbol, headers)
   local result, changed = {}, false
   for _, edit in ipairs(edits or {}) do
-    local open, path, close = (edit.newText or ""):match('#include%s*([<"])([^>"]+)([>"])')
+    local open, path = (edit.newText or ""):match('#include%s*([<"])([^>"]+)[>"]')
+    -- A system header clangd couldn't reach through the search path comes as
+    -- "/usr/include/bits/…": treat it like the <…> it should have been.
+    local system = open == '"' and path:sub(1, 1) == "/" and path:match("/include/(.+)$")
+    if system then
+      open, path = "<", system
+    end
     if not path or open == '"' then
       result[#result + 1] = edit
     else
@@ -138,7 +144,7 @@ local function fix_edits(edits, symbol, headers)
         if header and not headers[header] then
           headers[header] = true
           result[#result + 1] = vim.tbl_extend("force", edit, {
-            newText = edit.newText:gsub("#include%s*<[^>]+>", "#include <" .. header .. ">", 1),
+            newText = (edit.newText:gsub('#include%s*[<"][^>"]+[>"]', "#include <" .. header .. ">", 1)),
           })
         end
       end
@@ -174,34 +180,66 @@ function M.fix_completion(result, bufnr)
   return result
 end
 
--- clangd's quick fix: "Include <bits/…> for symbol malloc".
-local INCLUDE_TITLE = '^Include ([<"])([^>"]+)([>"]) for symbol ([%a_][%w_]*)$'
+-- The symbol an include quick fix is for: "Include <bits/…> for symbol
+-- malloc" (the fix on an undeclared name), else the name quoted in its
+-- diagnostic (include-cleaner's `No header providing "printf" is directly
+-- included`, whose fix is titled "#include <bits/…>").
+local function action_symbol(action)
+  local symbol = (action.title or ""):match("for symbol ([%a_][%w_]*)")
+  for _, diagnostic in ipairs(action.diagnostics or {}) do
+    symbol = symbol or (diagnostic.message or ""):match('"([%a_][%w_]*)"')
+  end
+  return symbol
+end
+
+-- The text edits of an action, as lists that can be replaced in place.
+local function action_edit_lists(action)
+  local lists = {}
+  for uri, edits in pairs(action.edit and action.edit.changes or {}) do
+    lists[#lists + 1] = { edits = edits, set = function(new)
+      action.edit.changes[uri] = new
+    end }
+  end
+  for _, change in ipairs(action.edit and action.edit.documentChanges or {}) do
+    if change.edits then
+      lists[#lists + 1] = { edits = change.edits, set = function(new)
+        change.edits = new
+      end }
+    end
+  end
+  return lists
+end
 
 -- Fixes or drops the include quick fixes of a textDocument/codeAction
--- result.
+-- result: every action whose edits add an #include, whatever its title.
 function M.fix_code_actions(result, bufnr)
   if type(result) ~= "table" then
     return result
   end
   local kept = {}
   for _, action in ipairs(result) do
-    local open, path, _, symbol = (action.title or ""):match(INCLUDE_TITLE)
-    local header = path
-    if open == "<" then
-      header = M.header(path, symbol)
-    end
-    if header == path or not action.edit then
-      kept[#kept + 1] = action
-    elseif header and not included(bufnr)[header] then
-      action.title = ("Include <%s> for symbol %s"):format(header, symbol)
-      for _, edits in pairs(action.edit.changes or {}) do
-        local fixed = fix_edits(edits, symbol, {})
-        for i, edit in ipairs(fixed) do
-          edits[i] = edit
-        end
+    local symbol = action_symbol(action)
+    local lists = action_edit_lists(action)
+    local changed, empty = false, #lists > 0
+    for _, list in ipairs(lists) do
+      local edits, list_changed = fix_edits(list.edits, symbol, included(bufnr))
+      if list_changed then
+        changed = true
+        list.set(edits)
       end
-      for _, change in ipairs(action.edit.documentChanges or {}) do
-        change.edits = (fix_edits(change.edits, symbol, {}))
+      empty = empty and #edits == 0
+    end
+    if not changed then
+      kept[#kept + 1] = action
+    elseif not empty then
+      -- The title names the header the edits now add.
+      for _, new_list in ipairs(action_edit_lists(action)) do
+        for _, edit in ipairs(new_list.edits) do
+          local header = (edit.newText or ""):match("#include%s*(<[^>]+>)")
+          if header and action.title then
+            action.title = action.title:gsub('[<"][^>"]+[>"]', header, 1)
+          end
+        end
       end
       kept[#kept + 1] = action
     end
@@ -244,22 +282,94 @@ function M.attach(client)
   end
 end
 
+-- clangd reads compile_commands.json or compile_flags.txt, which Epitech
+-- projects don't have: without them it only knows the system headers, and
+-- #include "my.h" (found by make through CPPFLAGS = -I./include) is an error
+-- in the editor. For each file it opens, clangd is given the -I directories
+-- the build passes (project.build_include_dirs) through its
+-- compilationDatabaseChanges setting, which only lives in its memory:
+-- nothing is written to the project (ground rule 2).
+local DATABASES = { "compile_commands.json", "compile_flags.txt", "build/compile_commands.json" }
+
+-- { workingDirectory, compilationCommand } for file, or nil when the
+-- project has its own database or passes no -I.
+function M.compile_command(root, file)
+  for _, name in ipairs(DATABASES) do
+    if vim.fn.filereadable(root .. "/" .. name) == 1 then
+      return nil
+    end
+  end
+  local dirs = require("epitech.project").build_include_dirs(root, file)
+  if #dirs == 0 then
+    return nil
+  end
+  local command = { "clang" }
+  for _, dir in ipairs(dirs) do
+    command[#command + 1] = "-I" .. dir
+  end
+  command[#command + 1] = file
+  return { workingDirectory = root, compilationCommand = command }
+end
+
+-- Sends clangd the command for each C buffer of bufs (all its buffers by
+-- default).
+function M.send_include_dirs(client, bufs)
+  if client.name ~= "clangd" then
+    return
+  end
+  local changes = {}
+  for _, buf in ipairs(bufs or vim.tbl_keys(client.attached_buffers or {})) do
+    if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_get_name(buf) ~= "" then
+      -- The path clangd knows the file by: the one in the didOpen URI.
+      local file = vim.uri_to_fname(vim.uri_from_bufnr(buf))
+      local command = M.compile_command(require("epitech.project").root(buf), file)
+      if command then
+        changes[file] = command
+      end
+    end
+  end
+  if next(changes) then
+    client:notify("workspace/didChangeConfiguration", { settings = { compilationDatabaseChanges = changes } })
+  end
+end
+
 function M.setup(options)
   local group = vim.api.nvim_create_augroup("epitech.clangd", { clear = true })
-  if not options.clangd.fix_includes then
+  local fix, dirs = options.clangd.fix_includes, options.clangd.include_dirs
+  if not fix and not dirs then
     return
   end
   vim.api.nvim_create_autocmd("LspAttach", {
     group = group,
     callback = function(args)
       local client = vim.lsp.get_client_by_id(args.data.client_id)
-      if client then
+      if client and fix then
         M.attach(client)
+      end
+      if client and dirs then
+        M.send_include_dirs(client, { args.buf })
       end
     end,
   })
+  if dirs then
+    -- A new -I in the Makefile reaches the files already open.
+    vim.api.nvim_create_autocmd("BufWritePost", {
+      group = group,
+      pattern = "Makefile",
+      callback = function()
+        for _, client in ipairs(vim.lsp.get_clients({ name = "clangd" })) do
+          M.send_include_dirs(client)
+        end
+      end,
+    })
+  end
   for _, client in ipairs(vim.lsp.get_clients({ name = "clangd" })) do
-    M.attach(client)
+    if fix then
+      M.attach(client)
+    end
+    if dirs then
+      M.send_include_dirs(client)
+    end
   end
 end
 

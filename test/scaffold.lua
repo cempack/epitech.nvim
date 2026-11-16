@@ -108,16 +108,16 @@ h.assert_equal(read("include/demo.h"), vim.list_extend(c_header("Declarations fo
   "int print_error(char const *subject);", "int print_error_message(char const *message);", "", "#endif",
 }), "project header")
 h.assert_equal(vim.list_slice(read("src/print_error.c"), 7, 13), { "", "#include <errno.h>", "#include <unistd.h>",
-  '#include "../include/my.h"', '#include "../include/demo.h"', "", "static char const *get_error_message(int error)",
+  '#include "my.h"', '#include "demo.h"', "", "static char const *get_error_message(int error)",
 }, "the error file")
 h.assert_equal(vim.fn.readdir(dir .. "/lib/my"), { "Makefile", "my_strlen.c" }, "only the libmy it uses")
 h.assert_equal(vim.list_slice(read("include/my.h"), 8, 12), { "#ifndef MY_H_", "    #define MY_H_", "",
   "int my_strlen(char const *str);", "" }, "my.h")
 h.assert_equal(read("src/main.c"), vim.list_extend(c_header("Entry point"), {
-  "", '#include "../include/demo.h"', "", "int main(void)", "{", "    return 0;", "}",
+  "", '#include "demo.h"', "", "int main(void)", "{", "    return 0;", "}",
 }), "main.c")
 h.assert_equal(read("tests/test_demo.c"), vim.list_extend(c_header("Unit tests"), {
-  "", "#include <criterion/criterion.h>", '#include "../include/demo.h"', "", "Test(demo, placeholder)", "{",
+  "", "#include <criterion/criterion.h>", '#include "demo.h"', "", "Test(demo, placeholder)", "{",
   "    cr_assert_eq(1, 1);", "}",
 }), "Criterion skeleton")
 h.assert_equal(read(".gitignore"), { "*.o", "*.a", "*.so", "*.gcda", "*.gcno", "vgcore.*", "*~", "\\#*#", "demo",
@@ -147,7 +147,7 @@ if cc then
   local copy = vim.fn.tempname()
   vim.system({ "cp", "-r", dir, copy }):wait()
   vim.fn.writefile(vim.list_extend(c_header("Entry point"), { "", "#include <errno.h>",
-    '#include "../include/demo.h"', "", "int main(void)", "{", "    errno = ENOENT;",
+    '#include "demo.h"', "", "int main(void)", "{", "    errno = ENOENT;",
     '    print_error_message("usage");', '    return print_error("file");', "}" }), copy .. "/src/main.c")
   local built = vim.system({ "make", "-C", copy, "CC=" .. cc, "CFLAGS=-Wall -Wextra -Werror", "LDLIBS=-lmy" },
     { text = true }):wait()

@@ -58,11 +58,16 @@ function M.actions(buf, range)
   return actions
 end
 
--- The path that includes the project's my.h from file's directory.
+-- How file includes the project's my.h: "my.h" when the Makefile passes
+-- -I for its directory, else a path from file's directory.
 function M.include_path(root, file)
   local relative = util.relative(file, root) or vim.fs.basename(file)
   local dir = relative:find("/") and vim.fs.dirname(relative) or ""
-  return lib.relative_from(dir, lib.header_path(root))
+  -- lib/my is built by its own Makefile, which passes no -I.
+  if dir == "lib" or vim.startswith(dir, "lib/") then
+    return lib.relative_from(dir, lib.header_path(root))
+  end
+  return project.include_name(root, file, root .. "/" .. lib.header_path(root))
 end
 
 -- Adds name to lib/my, then #include "…/my.h" to buf unless it includes a

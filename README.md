@@ -79,6 +79,10 @@ tests/test_my_ls.c    a Criterion test
 .gitignore            build products, vgcore, *.gcda…
 ```
 
+Sources include headers by name (`#include "my_ls.h"`, `#include "my.h"`):
+the Makefile's `CPPFLAGS = -I./include` finds them, and the plugin tells
+clangd the same directories, so the editor resolves them too.
+
 `make` builds without debug information, as the moulinette does;
 `make debug` rebuilds everything with `-g3` for gdb and valgrind.
 
@@ -153,7 +157,16 @@ used to add `<malloc.h>`, `size_t` `<__stddef_size_t.h>`, `printf` a
 `<bits/…>` header. The plugin rewrites those to the public header
 (`<stdlib.h>`, `<stddef.h>`, `<stdio.h>`), CSFML's to `<SFML/Graphics.h>`,
 Criterion's to `<criterion/criterion.h>`, and drops the ones it can't
-place.
+place. That covers completion, the "Include … for symbol" quick fix and
+the "#include …" fix on clangd's missing-include warning.
+
+**clangd finds `include/`.** Without a `compile_commands.json`, clangd
+doesn't know the Makefile's `-I` flags, and `#include "my.h"` shows as an
+error. The plugin passes clangd the `-I` directories written in the root
+Makefile for each file it opens (in memory, nothing is written to the
+project), and again when the Makefile is saved. Includes the plugin adds
+(macros, moved types, libmy) use the bare name only when the Makefile has
+that `-I`, otherwise a path from the file (`../include/my.h`).
 
 **Snippets** in the style: `main`, `fn`, `sfn`, `tdef`, `tenum`, `sw`,
 `fori`, `ife`, `mal` ([setup below](#snippets)).
@@ -322,7 +335,7 @@ require("epitech").setup({
   },
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
-  clangd = { fix_includes = true },
+  clangd = { fix_includes = true, include_dirs = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   make = { keymap = "<leader>cM" },
   tests = { keymap = "<leader>cT", coverage = true, fclean = true },

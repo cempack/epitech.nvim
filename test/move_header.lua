@@ -12,7 +12,7 @@ local function with_header(lines)
   return vim.list_extend(vim.deepcopy(HEADER), lines)
 end
 local root, cleanup = h.temp_project({
-  ["Makefile"] = { "NAME = demo" },
+  ["Makefile"] = { "NAME = demo", "CPPFLAGS = -I./include" },
   ["include/point.h"] = { "#ifndef POINT_H_", "    #define POINT_H_", "", "int other(void);", "", "#endif" },
   ["src/point.c"] = with_header({
     "#include <stdlib.h>", "",

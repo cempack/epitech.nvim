@@ -46,6 +46,8 @@ local completion = {
     { label = "•__fpending(FILE *fp)", filterText = "__fpending", additionalTextEdits = include("<bits/x.h>") },
     { label = "•printf(const char *fmt, ...)", filterText = "printf",
       additionalTextEdits = include("<bits/stdio2.h>") },
+    { label = "•strlen(const char *s)", filterText = "strlen",
+      additionalTextEdits = include('"/usr/include/bits/string_fortified.h"') },
     { label = " ac", filterText = "ac" },
   },
 }
@@ -56,8 +58,15 @@ local code_actions = {
     edit = { changes = { ["file:///x.c"] = include("<bits/x.h>") } } },
   { title = "Include <ctype.h> for symbol isalpha", kind = "quickfix",
     edit = { documentChanges = { { textDocument = { uri = "file:///x.c" }, edits = include("<ctype.h>") } } } },
+  { title = "#include <bits/string_fortified.h>", kind = "quickfix",
+    diagnostics = { { message = 'No header providing "strdup" is directly included (fixes available)' } },
+    edit = { changes = { ["file:///x.c"] = include("<bits/string_fortified.h>") } } },
+  { title = "#include <bits/stdio2.h>", kind = "quickfix",
+    diagnostics = { { message = 'No header providing "printf" is directly included (fixes available)' } },
+    edit = { changes = { ["file:///x.c"] = include("<bits/stdio2.h>") } } },
   { title = "Add missing ';'", kind = "quickfix" },
 }
+local notified = {}
 local function server(dispatchers)
   local srv, closing = {}, false
   function srv.request(method, _, callback)
@@ -74,7 +83,8 @@ local function server(dispatchers)
     end)
     return true, 1
   end
-  function srv.notify(method)
+  function srv.notify(method, notify_params)
+    notified[#notified + 1] = { method = method, params = notify_params }
     if method == "exit" then
       dispatchers.on_exit(0, 15)
     end
@@ -114,6 +124,7 @@ local expected = {
   "•cr_assert_eq(…) #include <criterion/criterion.h>",
   " __fpending(FILE *fp) ",
   " printf(const char *fmt, ...) ",
+  "•strlen(const char *s) #include <string.h>",
   " ac ",
 }
 
@@ -147,8 +158,11 @@ local actions = client:request_sync("textDocument/codeAction", {
 }, 1000, buf).result
 h.assert_equal(vim.tbl_map(function(action)
   return action.title
-end, actions), { "Include <stdlib.h> for symbol malloc", "Include <ctype.h> for symbol isalpha", "Add missing ';'" },
-  "quick fixes: fixed, dropped, kept")
+end, actions), {
+  "Include <stdlib.h> for symbol malloc", "Include <ctype.h> for symbol isalpha", "#include <string.h>",
+  "Add missing ';'",
+}, "quick fixes: fixed, dropped (stdio.h is included), kept")
+h.assert_equal(actions[3].edit.changes["file:///x.c"][1].newText, "#include <string.h>\n", "include-cleaner fix")
 h.assert_equal(actions[1].edit.changes["file:///x.c"][1].newText, "#include <stdlib.h>\n", "quick fix edit")
 
 -- Only clangd is touched, and only once.
@@ -167,5 +181,46 @@ end))
 h.assert_equal(off:request_sync("textDocument/completion", params, 1000, buf).result.items[1].additionalTextEdits[1]
   .newText, "#include <malloc.h>\n", "fix_includes = false")
 off:stop(true)
+
+-- clangd learns the Makefile's -I directories for each file it opens.
+require("epitech").setup()
+local root, cleanup = h.temp_project({
+  ["Makefile"] = { "NAME = demo", "", "CPPFLAGS = -I./include  # headers", "", "SRC = src/main.c" },
+  ["include/demo.h"] = { "#ifndef DEMO_H_", "    #define DEMO_H_", "#endif" },
+  ["src/main.c"] = { '#include "demo.h"', "", "int main(void)", "{", "    return 0;", "}" },
+})
+h.assert_equal(require("epitech.project").build_include_dirs(root, root .. "/src/main.c"), { root .. "/include" },
+  "build include dirs from the Makefile")
+vim.cmd.edit(root .. "/src/main.c")
+local main = vim.api.nvim_get_current_buf()
+notified = {}
+local dirs_client = assert(vim.lsp.get_client_by_id(assert(vim.lsp.start({ name = "clangd", cmd = server,
+  root_dir = root }, { bufnr = main }))))
+local file = vim.uri_to_fname(vim.uri_from_bufnr(main))
+local function sent()
+  for _, message in ipairs(notified) do
+    if message.method == "workspace/didChangeConfiguration" then
+      return message.params.settings.compilationDatabaseChanges
+    end
+  end
+end
+assert(vim.wait(2000, function()
+  return sent() ~= nil
+end), "include dirs sent")
+h.assert_equal(sent(), {
+  [file] = { workingDirectory = root, compilationCommand = { "clang", "-I" .. root .. "/include", file } },
+}, "compilation command for the file")
+dirs_client:stop(true)
+
+-- Nothing when the project has a compile_commands.json, or no -I.
+vim.fn.writefile({ "[]" }, root .. "/compile_commands.json")
+h.assert_equal(clangd.compile_command(root, file), nil, "own database")
+vim.fn.delete(root .. "/compile_commands.json")
+vim.fn.writefile({ "NAME = demo" }, root .. "/Makefile")
+h.assert_equal(clangd.compile_command(root, file), nil, "no -I in the Makefile")
+vim.fn.writefile({ "CPPFLAGS = -I$(INC) -I include -Ilib/../include" }, root .. "/Makefile")
+h.assert_equal(require("epitech.project").build_include_dirs(root, file), { root .. "/include" },
+  "variables skipped, paths normalized, no duplicates")
+cleanup()
 
 print("Epitech clangd include tests passed")
