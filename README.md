@@ -271,6 +271,13 @@ them back.
 Nothing the plugin remembers goes in your repository (C-O1): it lives in
 `~/.local/share/nvim/epitech.nvim/`.
 
+**Several projects in one repository.** The project is the nearest
+directory with a Makefile (`mysudo/bootstrap/`), not the git repository
+around it: new files, `SRC` lines, the header, libmy and clangd's `-I` all
+go to the project you're editing, and `<leader>cN` names it in its prompt.
+A `lib/my`, a directory the Makefile above builds (`$(MAKE) -C lib/my`) or
+one building a `lib*.a` stays part of its parent project.
+
 ## Commands and keys
 
 | Key | Command | |

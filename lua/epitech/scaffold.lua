@@ -365,11 +365,16 @@ end
 -- to the project root. A .c file is added to SRC (TESTS_SRC under tests/
 -- when the Makefile has it); a .h gets an include guard. Then it's opened.
 -- on_done (optional) receives the absolute path.
+function M.new_file_prompt(root)
+  return "New file in " .. vim.fs.basename(root) .. "/: "
+end
+
 function M.new_file(path, root, on_done)
   root = root or project.root(0)
   if not path then
-    -- No path given (<leader>cN): ask for it, relative to the project.
-    return vim.ui.input({ prompt = "New file: " }, function(answer)
+    -- No path given (<leader>cN): ask for it, relative to the project, which
+    -- the prompt names (a repository can hold several projects).
+    return vim.ui.input({ prompt = M.new_file_prompt(root) }, function(answer)
       if answer and answer ~= "" then
         M.new_file(answer, root, on_done)
       end

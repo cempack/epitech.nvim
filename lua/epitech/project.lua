@@ -9,14 +9,63 @@ local function absolute(path)
   return (vim.fs.normalize(vim.fn.fnamemodify(path, ":p")):gsub("(.)/$", "%1"))
 end
 
+-- Whether the Makefile in dir is a sub-build of the project in parent (its
+-- lib/my): parent's Makefile names it (`$(MAKE) -C lib/my`), it lives under
+-- a lib/ directory, or it builds a static library (NAME = libmy.a).
+local function sub_build(dir, parent)
+  local relative = dir:sub(#parent + 2)
+  if relative:match("^libs?/") or relative:match("/libs?/") then
+    return true
+  end
+  for _, line in ipairs(vim.fn.readfile(dir .. "/Makefile", "", 200)) do
+    if line:match("^%s*NAME%s*[:]?=%s*lib[%w_]*%.a%s*$") then
+      return true
+    end
+  end
+  for _, line in ipairs(vim.fn.readfile(parent .. "/Makefile", "", 500)) do
+    local from = 1
+    while true do
+      local first, last = line:find(relative, from, true)
+      if not first then
+        break
+      end
+      local before, after = line:sub(first - 1, first - 1), line:sub(last + 1, last + 1)
+      if not before:match("[%w_]") and not after:match("[%w_]") then
+        return true
+      end
+      from = last + 1
+    end
+  end
+  return false
+end
+
 -- The project root of a buffer (0 for the current one) or a file path: the
--- nearest directory with .git, else with a Makefile, else the file's own
--- directory (the current directory for an unnamed buffer).
+-- nearest directory with a Makefile, climbing past the sub-builds of the
+-- project above it (lib/my), as long as it's inside the git repository; else
+-- the repository's root; else the file's own directory (the current
+-- directory for an unnamed buffer). A repository holding several projects
+-- (mysudo/bootstrap, mysudo/src) gives each its own root, so includes,
+-- new files and state go to the project being edited.
 function M.root(source)
   source = source or 0
-  local root = vim.fs.root(source, { ".git", "Makefile" })
-  if root then
-    return absolute(root)
+  local git = vim.fs.root(source, ".git")
+  git = git and absolute(git)
+  local make = vim.fs.root(source, "Makefile")
+  make = make and absolute(make)
+  if make and (not git or make == git or vim.startswith(make, git .. "/")) then
+    while make ~= git do
+      local parent = vim.fs.root(vim.fs.dirname(make), "Makefile")
+      parent = parent and absolute(parent)
+      if not parent or (git and parent ~= git and not vim.startswith(parent, git .. "/"))
+        or not sub_build(make, parent) then
+        break
+      end
+      make = parent
+    end
+    return make
+  end
+  if git then
+    return git
   end
   local name = type(source) == "number" and vim.api.nvim_buf_get_name(source) or source
   if name == "" then
@@ -38,7 +87,8 @@ function M.files(root, pathspecs, opts)
   end
   -- Hints ask on every pause in typing: tracked files only change with the
   -- index, so answers are cached until .git/index changes.
-  local index = not (opts and opts.untracked) and vim.uv.fs_stat(root .. "/.git/index")
+  local git = vim.fs.root(root, ".git")
+  local index = not (opts and opts.untracked) and git and vim.uv.fs_stat(git .. "/.git/index")
   local key = index and table.concat({ root, index.mtime.sec, index.mtime.nsec, index.size,
     table.concat(pathspecs or {}, "\0") }, "\0")
   if key and files_cache[key] then

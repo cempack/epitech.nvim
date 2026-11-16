@@ -214,10 +214,10 @@ h.assert_equal(vim.fn.maparg("<leader>cN", "n", false, true).desc, "Epitech New 
 local prompts = {}
 vim.ui.input = function(opts, on_confirm)
   prompts[#prompts + 1] = { opts.prompt, opts.default }
-  on_confirm(opts.prompt == "New file: " and "src/display.c" or "Display")
+  on_confirm(vim.startswith(opts.prompt, "New file in ") and "src/display.c" or "Display")
 end
 vim.fn.maparg("<leader>cN", "n", false, true).callback()
-h.assert_equal(prompts, { { "New file: " }, { "File description: " } }, "asks for the path, then the description")
+h.assert_equal(prompts, { { require("epitech.scaffold").new_file_prompt(require("epitech.project").root(0)) }, { "File description: " } }, "asks for the path, then the description")
 h.assert_equal(read("src/display.c"), c_header("Display"), "file created from the typed path")
 vim.ui.input = function(_, on_confirm)
   on_confirm("")

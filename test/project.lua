@@ -43,6 +43,30 @@ h.assert_equal(project.root(buf), root, "root of a buffer")
 h.assert_equal(project.root(0), root, "root of the current buffer")
 vim.api.nvim_buf_delete(buf, { force = true })
 
+-- A repository holding several projects (mysudo/bootstrap): each Makefile
+-- directory is its own root, but a lib/my or a directory the parent
+-- Makefile builds stays part of its project.
+local mono, cleanup_mono = h.temp_project({
+  ["README.md"] = { "mysudo" },
+  ["bootstrap/Makefile"] = { "NAME = bootstrap", "CPPFLAGS = -I./include" },
+  ["bootstrap/src/my_exec.c"] = {},
+  ["bootstrap/lib/my/Makefile"] = { "NAME = libmy.a" },
+  ["bootstrap/lib/my/my_putstr.c"] = {},
+  ["sudo/Makefile"] = { "all:", "\t$(MAKE) -C tools/gen" },
+  ["sudo/tools/gen/Makefile"] = { "NAME = gen" },
+  ["sudo/tools/gen/gen.c"] = {},
+  ["notes/todo.c"] = {},
+})
+h.assert_equal(project.root(mono .. "/bootstrap/src/my_exec.c"), mono .. "/bootstrap", "nested project")
+h.assert_equal(project.root(mono .. "/bootstrap/lib/my/my_putstr.c"), mono .. "/bootstrap", "its lib/my")
+h.assert_equal(project.root(mono .. "/sudo/tools/gen/gen.c"), mono .. "/sudo", "a directory its parent builds")
+h.assert_equal(project.root(mono .. "/notes/todo.c"), mono, "outside any Makefile: the repository")
+h.assert_equal(project.files(mono .. "/bootstrap", { "*.c" }), { "lib/my/my_putstr.c", "src/my_exec.c" },
+  "files relative to the nested project")
+h.assert_equal(project.build_include_dirs(mono .. "/bootstrap", mono .. "/bootstrap/src/my_exec.c"),
+  { mono .. "/bootstrap/include" }, "the nested project's -I")
+cleanup_mono()
+
 local function temp_dir()
   local dir = vim.fn.tempname()
   vim.fn.mkdir(dir, "p")
