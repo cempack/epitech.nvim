@@ -67,7 +67,9 @@ local code_actions = {
   { title = "Add missing ';'", kind = "quickfix" },
 }
 local notified = {}
+local pushers = {}
 local function server(dispatchers)
+  pushers[#pushers + 1] = dispatchers
   local srv, closing = {}, false
   function srv.request(method, _, callback)
     local result
@@ -222,5 +224,81 @@ vim.fn.writefile({ "CPPFLAGS = -I$(INC) -I include -Ilib/../include" }, root .. 
 h.assert_equal(require("epitech.project").build_include_dirs(root, file), { root .. "/include" },
   "variables skipped, paths normalized, no duplicates")
 cleanup()
+
+-- "Included header … is not used directly": dropped in a header, and on a
+-- project header in a .c; kept on an unused <stdio.h>. Its "remove" fix
+-- goes with it.
+local dir = vim.fn.tempname()
+vim.fn.mkdir(dir, "p")
+local header_buf = h.buffer(dir .. "/game.h", { "#include <CSFML/Graphics.h>", '#include "assets.h"' })
+local source_buf = h.buffer(dir .. "/main.c", { '#include "game.h"', "#include <stdio.h>", "", "int x;" })
+local function unused(row, name)
+  return {
+    range = { start = { line = row, character = 0 }, ["end"] = { line = row, character = 10 } },
+    severity = 2, source = "clangd", code = "unused-includes",
+    message = "Included header " .. name .. " is not used directly (fixes available)",
+  }
+end
+local other = {
+  range = { start = { line = 3, character = 4 }, ["end"] = { line = 3, character = 5 } },
+  severity = 1, source = "clangd", code = "undeclared_var_use", message = "Use of undeclared identifier",
+}
+pushers = {}
+local quiet = assert(vim.lsp.get_client_by_id(assert(vim.lsp.start({ name = "clangd", cmd = server,
+  root_dir = dir }, { bufnr = header_buf }))))
+assert(vim.wait(2000, function()
+  return quiet.initialized
+end))
+vim.lsp.buf_attach_client(source_buf, quiet.id)
+local push = pushers[#pushers]
+local function messages(target)
+  return vim.tbl_map(function(diagnostic)
+    return diagnostic.message
+  end, vim.diagnostic.get(target))
+end
+push.notification("textDocument/publishDiagnostics", { uri = vim.uri_from_bufnr(header_buf),
+  diagnostics = { unused(0, "Graphics.h"), unused(1, "assets.h") } })
+push.notification("textDocument/publishDiagnostics", { uri = vim.uri_from_bufnr(source_buf),
+  diagnostics = { unused(0, "game.h"), unused(1, "stdio.h"), other } })
+assert(vim.wait(1000, function()
+  return #vim.diagnostic.get(source_buf) > 0
+end), "diagnostics published")
+h.assert_equal(messages(header_buf), {}, "nothing unused in a header")
+h.assert_equal(messages(source_buf), {
+  "Included header stdio.h is not used directly (fixes available)", "Use of undeclared identifier",
+}, "a project header in a .c is quiet, <stdio.h> isn't")
+local fixes = {
+  { title = "remove #include directive", kind = "quickfix", diagnostics = { unused(0, "game.h") } },
+  { title = "remove #include directive", kind = "quickfix", diagnostics = { unused(1, "stdio.h") } },
+}
+local filtered = assert(require("epitech.clangd").fix_code_actions(vim.deepcopy(fixes), source_buf))
+h.assert_equal(#filtered, 2, "fix_code_actions leaves them to the unused-include filter")
+code_actions = fixes
+local offered = quiet:request_sync("textDocument/codeAction", {
+  textDocument = { uri = vim.uri_from_bufnr(source_buf) },
+  range = { start = { line = 0, character = 0 }, ["end"] = { line = 1, character = 0 } },
+  context = { diagnostics = {} },
+}, 1000, source_buf).result
+h.assert_equal(#offered, 1, "the remove fix of a quiet warning is dropped")
+h.assert_equal(offered[1].diagnostics[1].message:match("stdio"), "stdio", "the <stdio.h> one stays")
+h.assert_equal(require("epitech.clangd").fix_pulled_diagnostics({ items = { unused(1, "assets.h") } }, header_buf)
+  .items, {}, "pulled diagnostics too")
+quiet:stop(true)
+
+-- Turned off, they all show.
+require("epitech").setup({ clangd = { quiet_unused_includes = false } })
+pushers = {}
+local loud = assert(vim.lsp.get_client_by_id(assert(vim.lsp.start({ name = "clangd", cmd = server,
+  root_dir = dir .. "/loud" }, { bufnr = header_buf }))))
+assert(vim.wait(2000, function()
+  return loud.initialized
+end))
+pushers[#pushers].notification("textDocument/publishDiagnostics", { uri = vim.uri_from_bufnr(header_buf),
+  diagnostics = { unused(1, "assets.h") } })
+assert(vim.wait(1000, function()
+  return #vim.diagnostic.get(header_buf) > 0
+end), "quiet_unused_includes = false")
+loud:stop(true)
+vim.fn.delete(dir, "rf")
 
 print("Epitech clangd include tests passed")

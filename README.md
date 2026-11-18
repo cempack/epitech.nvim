@@ -160,6 +160,12 @@ Criterion's to `<criterion/criterion.h>`, and drops the ones it can't
 place. That covers completion, the "Include … for symbol" quick fix and
 the "#include …" fix on clangd's missing-include warning.
 
+**No "not used directly" in your headers.** clangd warns that
+`#include "assets.h"` in `myhunter.h` isn't used there, but a project
+header gathers includes for the files that include it. The plugin drops
+that warning (and its "remove #include" fix) in headers, and in a `.c` on
+an include of a project header; an unused `<stdio.h>` in a `.c` still shows.
+
 **clangd finds `include/`.** Without a `compile_commands.json`, clangd
 doesn't know the Makefile's `-I` flags, and `#include "my.h"` shows as an
 error. The plugin passes clangd the `-I` directories written in the root
@@ -342,7 +348,7 @@ require("epitech").setup({
   },
   makefile = { enabled = true, tab_width = 8 },
   fixes = { enabled = true },
-  clangd = { fix_includes = true, include_dirs = true },
+  clangd = { fix_includes = true, include_dirs = true, quiet_unused_includes = true },
   check = { keymap = "<leader>cB", fail_on = { "fatal", "major" } },
   make = { keymap = "<leader>cM" },
   tests = { keymap = "<leader>cT", coverage = true, fclean = true },

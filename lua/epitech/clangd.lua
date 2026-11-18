@@ -247,11 +247,99 @@ function M.fix_code_actions(result, bufnr)
   return kept
 end
 
+-- clangd's include-cleaner wants each file to include what it uses itself.
+-- An Epitech project gathers its includes in its header (myhunter.h
+-- includes <CSFML/Graphics.h> and assets.h for every file that includes
+-- it), so "Included header … is not used directly" is noise there: in a
+-- header, where an include serves the files including it, and in a .c, on
+-- an include of a project header ("…"). An unused <stdio.h> in a .c stays.
+local function noisy(diagnostic, bufnr)
+  if diagnostic.code ~= "unused-includes" then
+    return false
+  end
+  if not (bufnr and vim.api.nvim_buf_is_valid(bufnr)) then
+    return false
+  end
+  if vim.api.nvim_buf_get_name(bufnr):match("%.h$") then
+    return true
+  end
+  local row = diagnostic.range and diagnostic.range.start.line or 0
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+  return line:match('^%s*#%s*include%s*"') ~= nil
+end
+
+local function keep_diagnostics(diagnostics, bufnr)
+  return vim.tbl_filter(function(diagnostic)
+    return not noisy(diagnostic, bufnr)
+  end, diagnostics or {})
+end
+
+-- Drops those warnings from a textDocument/publishDiagnostics notification.
+function M.fix_diagnostics(result)
+  if type(result) == "table" and result.uri and result.diagnostics then
+    local ok, bufnr = pcall(vim.uri_to_bufnr, result.uri)
+    if ok then
+      result.diagnostics = keep_diagnostics(result.diagnostics, bufnr)
+    end
+  end
+  return result
+end
+
+-- The same for a pulled report (textDocument/diagnostic).
+function M.fix_pulled_diagnostics(result, bufnr)
+  if type(result) == "table" and result.items then
+    result.items = keep_diagnostics(result.items, bufnr)
+  end
+  return result
+end
+
+-- Drops clangd's "remove #include directive" fix of a dropped warning.
+local function drop_noisy_actions(result, bufnr)
+  if type(result) ~= "table" then
+    return result
+  end
+  return vim.tbl_filter(function(action)
+    local diagnostics = action.diagnostics or {}
+    if #diagnostics == 0 then
+      return true
+    end
+    for _, diagnostic in ipairs(diagnostics) do
+      if not noisy(diagnostic, bufnr) then
+        return true
+      end
+    end
+    return false
+  end, result)
+end
+
+-- Which option turns each fixer on.
 local FIXERS = {
-  ["textDocument/completion"] = M.fix_completion,
-  ["completionItem/resolve"] = M.fix_completion,
-  ["textDocument/codeAction"] = M.fix_code_actions,
+  ["textDocument/completion"] = { "fix_includes", M.fix_completion },
+  ["completionItem/resolve"] = { "fix_includes", M.fix_completion },
+  ["textDocument/codeAction"] = { "fix_includes", M.fix_code_actions },
+  ["textDocument/diagnostic"] = { "quiet_unused_includes", M.fix_pulled_diagnostics },
 }
+
+local function fixer(method)
+  local options = require("epitech.config").options.clangd
+  local fixes = {}
+  local entry = FIXERS[method]
+  if entry and options[entry[1]] then
+    fixes[#fixes + 1] = entry[2]
+  end
+  if method == "textDocument/codeAction" and options.quiet_unused_includes then
+    fixes[#fixes + 1] = drop_noisy_actions
+  end
+  if #fixes == 0 then
+    return nil
+  end
+  return function(result, bufnr)
+    for _, fix in ipairs(fixes) do
+      result = fix(result, bufnr)
+    end
+    return result
+  end
+end
 
 -- Wraps a clangd client's request() so the handlers (blink.cmp's, nvim-cmp's,
 -- the code action menu's) get the fixed results. Both client:request(…) and
@@ -269,7 +357,7 @@ function M.attach(client)
     end
     local _, method, params, handler, bufnr = unpack(args, 1, 5)
     -- Read at each call: setup() may have turned the option off since.
-    local fix = require("epitech.config").options.clangd.fix_includes and FIXERS[method]
+    local fix = fixer(method)
     handler = handler or client.handlers[method] or vim.lsp.handlers[method]
     if fix and handler then
       local inner = handler
@@ -279,6 +367,17 @@ function M.attach(client)
       end
     end
     return request(client, method, params, handler, bufnr)
+  end
+  -- Pushed diagnostics come through the client's handler, which falls back
+  -- to vim.lsp.handlers (looked up at each call, so a user's own handler
+  -- still runs).
+  local method = "textDocument/publishDiagnostics"
+  local own = client.handlers[method]
+  client.handlers[method] = function(err, result, ctx, config)
+    if require("epitech.config").options.clangd.quiet_unused_includes then
+      pcall(M.fix_diagnostics, result)
+    end
+    return (own or vim.lsp.handlers[method])(err, result, ctx, config)
   end
 end
 
@@ -335,7 +434,8 @@ end
 
 function M.setup(options)
   local group = vim.api.nvim_create_augroup("epitech.clangd", { clear = true })
-  local fix, dirs = options.clangd.fix_includes, options.clangd.include_dirs
+  local dirs = options.clangd.include_dirs
+  local fix = options.clangd.fix_includes or options.clangd.quiet_unused_includes
   if not fix and not dirs then
     return
   end
