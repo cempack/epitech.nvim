@@ -3,47 +3,12 @@ local format = require("epitech.format")
 
 local M = {}
 
--- The original Epitech Vim config supplies the first set of comment styles.
--- The remaining common Neovim filetypes use their normal comment syntax.
-local comment_styles = {
-  c = { "/*", "**", "*/" },
-  cpp = { "//", "//", "//" },
-  make = { "##", "##", "##" },
-  java = { "//", "//", "//" },
-  tex = { "%%", "%%", "%%" },
-  html = { "<!--", "  --", "-->" },
-  lisp = { ";;", ";;", ";;" },
-  css = { "/*", "**", "*/" },
-  pov = { "//", "//", "//" },
-  pascal = { "{ ", "   ", "}" },
-  haskell = { "{-", "-- ", "-}" },
-  vim = { '""', '""', '""' },
-  sh = { "##", "##", "##", "#!/usr/bin/env sh" },
-  bash = { "##", "##", "##", "#!/usr/bin/env bash" },
-  zsh = { "##", "##", "##", "#!/usr/bin/env zsh" },
-  php = { "/*", "**", "*/", "#!/usr/bin/env php" },
-  perl = { "##", "##", "##", "#!/usr/bin/env perl" },
-  python = { "##", "##", "##", "#!/usr/bin/env python3" },
-  ruby = { "##", "##", "##", "#!/usr/bin/env ruby" },
-  node = { "/*", "**", "*/", "#!/usr/bin/env node" },
-  lua = { "--", "--", "--" },
-  javascript = { "//", "//", "//" },
-  javascriptreact = { "//", "//", "//" },
-  typescript = { "//", "//", "//" },
-  typescriptreact = { "//", "//", "//" },
-  go = { "//", "//", "//" },
-  rust = { "//", "//", "//" },
-  kotlin = { "//", "//", "//" },
-  scala = { "//", "//", "//" },
-  yaml = { "##", "##", "##" },
-  toml = { "##", "##", "##" },
-  conf = { "##", "##", "##" },
-  dockerfile = { "##", "##", "##" },
-  cmake = { "##", "##", "##" },
-  markdown = { "<!--", "  --", "-->" },
-  xml = { "<!--", "  --", "-->" },
-  sql = { "--", "--", "--" },
-}
+-- The comment styles of the Epitech header per filetype, shared with the VS
+-- Code extension (vscode/): edit shared/comment_styles.json. A fourth item is
+-- a shebang the header goes after. The c, make, java… styles come from
+-- Epitech's Vim config; the other filetypes use their usual comment syntax.
+local plugin_dir = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2))))
+local comment_styles = vim.json.decode(table.concat(vim.fn.readfile(plugin_dir .. "/shared/comment_styles.json"), "\n"))
 
 local function header_lines(style, project, description, year)
   return {

@@ -1,0 +1,123 @@
+{
+  "name": "epitech",
+  "displayName": "Epitech Coding Style",
+  "description": "The Epitech C coding style in VS Code: a Banana-proof formatter, Banana's reports as you save, function and nesting meters, fixes, headers, project scaffolding and snippets.",
+  "version": "0.1.0",
+  "publisher": "cempack",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cempack/epitech.nvim"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Formatters", "Linters", "Snippets"],
+  "keywords": ["epitech", "banana", "coding style", "c"],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onLanguage:c",
+    "onLanguage:cpp",
+    "onLanguage:makefile",
+    "workspaceContains:**/Makefile"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "epitech.insertHeader", "title": "Insert Epitech Header", "category": "Epitech" },
+      { "command": "epitech.insertGuard", "title": "Add an Include Guard", "category": "Epitech" },
+      { "command": "epitech.newProject", "title": "New Project", "category": "Epitech" },
+      { "command": "epitech.newFile", "title": "New Source File", "category": "Epitech" },
+      { "command": "epitech.checkProject", "title": "Check the Whole Project with Banana", "category": "Epitech" },
+      { "command": "epitech.explainRule", "title": "Explain a Coding Style Rule", "category": "Epitech" },
+      { "command": "epitech.fixAllVoid", "title": "Add (void) to Every Empty Parameter List in the File", "category": "Epitech" },
+      { "command": "epitech.toggleBudgets", "title": "Toggle the Function and Depth Meters", "category": "Epitech" }
+    ],
+    "keybindings": [
+      { "command": "epitech.insertHeader", "key": "ctrl+alt+h", "when": "editorTextFocus" },
+      { "command": "epitech.explainRule", "key": "ctrl+alt+e", "when": "editorTextFocus" }
+    ],
+    "snippets": [
+      { "language": "c", "path": "./data/snippets/c.json" }
+    ],
+    "configuration": {
+      "title": "Epitech",
+      "properties": {
+        "epitech.diagnostics.enabled": {
+          "type": "boolean", "default": true,
+          "description": "Run Banana (epiclang) on C files when they're opened or saved."
+        },
+        "epitech.diagnostics.command": {
+          "type": "string", "default": "epiclang",
+          "description": "The Banana checker. Include flags come from compile_commands.json or the project's include/ directory."
+        },
+        "epitech.diagnostics.args": {
+          "type": "array", "items": { "type": "string" }, "default": ["-x", "c", "-fsyntax-only"],
+          "description": "Arguments given to the checker before the include flags and the file."
+        },
+        "epitech.format.enabled": {
+          "type": "boolean", "default": true,
+          "description": "Format C files and headers in the Epitech style (clang-format 21 or later plus the passes Banana needs)."
+        },
+        "epitech.format.clangFormat": {
+          "type": "string", "default": "clang-format",
+          "description": "The clang-format program (version 21 or later)."
+        },
+        "epitech.budget.functions": {
+          "type": "boolean", "default": true,
+          "description": "Show \"13/20 lines · 2/4 args\" after each function's signature (C-F4, C-F5)."
+        },
+        "epitech.budget.depth": {
+          "type": "boolean", "default": true,
+          "description": "Show the nesting depth and branch count of control statements (C-C1)."
+        },
+        "epitech.budget.file": {
+          "type": "boolean", "default": true,
+          "description": "Show the file's function counts in the status bar (C-O3)."
+        },
+        "epitech.scaffold.cc": {
+          "type": "string", "default": "epiclang",
+          "description": "CC in the Makefiles of new projects."
+        },
+        "epitech.scaffold.cflags": {
+          "type": "string", "default": "",
+          "description": "CFLAGS of new projects; empty for no CFLAGS line."
+        },
+        "epitech.scaffold.debugCflags": {
+          "type": "string", "default": "-g3",
+          "description": "Flags `make debug` adds in new projects; empty for no debug rule."
+        },
+        "epitech.scaffold.errorFile": {
+          "type": "boolean", "default": true,
+          "description": "Give new programs src/print_error.c and the part of libmy it uses."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "files.associations": { "*.h": "c" },
+      "[c]": {
+        "editor.defaultFormatter": "cempack.epitech",
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.rulers": [80],
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "files.eol": "\n"
+      },
+      "[makefile]": {
+        "editor.rulers": [80]
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "vendor": "node scripts/vendor.js",
+    "package": "node scripts/vendor.js && vsce package --no-dependencies -o epitech.vsix"
+  },
+  "dependencies": {
+    "tree-sitter-c": "0.24.1",
+    "web-tree-sitter": "0.25.10"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.0"
+  }
+}

@@ -1,0 +1,93 @@
+# Tests both editors on every push and pull request. On main, when the VS
+# Code extension or a file it shares with the plugin changed, it also
+# publishes the extension: a release "vscode-v0.1.<run>" holding
+# epitech.vsix, which epitech-dump-arch installs from
+# releases/latest/download/epitech.vsix.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Neovim, clang-format and a luac stand-in
+        run: |
+          curl -fsSL -o /tmp/nvim.tar.gz https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-linux-x86_64.tar.gz
+          sudo tar -xzf /tmp/nvim.tar.gz -C /opt
+          sudo ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
+          pipx install "clang-format>=21,<22"
+          sudo tee /usr/local/bin/luac >/dev/null <<'LUAC'
+          #!/bin/sh
+          [ "$1" = "-p" ] && shift
+          for file in "$@"; do
+              LUAC_FILE="$file" nvim --clean --headless \
+                  +'lua local ok, err = loadfile(os.getenv("LUAC_FILE")) if not ok then io.stderr:write(err .. "\n") os.exit(1) end os.exit(0)' \
+                  || exit 1
+          done
+          LUAC
+          sudo chmod +x /usr/local/bin/luac
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: vscode
+      - run: test/run
+
+  changes:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      vscode: ${{ steps.filter.outputs.vscode }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # Every file the push changed (all of them for a new branch).
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+              || git diff --name-only "$BEFORE" HEAD | grep -qE '^(vscode/|shared/|snippets/|templates/|epitech\.clang-format|lua/epitech/format\.lua)'; then
+            echo vscode=true >> "$GITHUB_OUTPUT"
+          else
+            echo vscode=false >> "$GITHUB_OUTPUT"
+          fi
+
+  release-vscode:
+    needs: [test, changes]
+    if: needs.changes.outputs.vscode == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: vscode
+      - name: Package the extension
+        working-directory: vscode
+        run: |
+          version="$(node -p 'require("./package.json").version.replace(/\.\d+$/, "")').${{ github.run_number }}"
+          npm version --no-git-tag-version "$version"
+          npm run package
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "vscode-v$VERSION" vscode/epitech.vsix \
+              --title "VS Code extension $VERSION" \
+              --notes "Install: code --install-extension epitech.vsix (epitech-dump-arch does it for you)." \
+              --target "$GITHUB_SHA" --latest

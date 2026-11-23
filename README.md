@@ -7,7 +7,9 @@ violations, and the project chores (Makefiles, headers, libmy, tests, the
 pre-delivery check) done in a command.
 
 Built for LazyVim, works with any lazy.nvim setup. Covers the Epitech C
-Coding Style v7.1.
+Coding Style v7.1. Using VS Code? The same repository has
+[an extension](#vs-code) that formats, measures and scaffolds exactly like
+the plugin.
 
 ```c
 int parse_args(int ac, char **av, options_t *options)    16/20 lines · 3/4 args
@@ -400,9 +402,32 @@ With LuaSnip:
 `require("epitech.rules").by_code["C-L1"]` for a rule,
 `require("epitech.ts").functions(buf)` for a buffer's functions.
 
+## VS Code
+
+[`vscode/`](vscode/) is an extension for VS Code, VSCodium and Code - OSS
+that works without Neovim: the same formatter (ported line for line),
+Banana's reports in the Problems panel with the rule on hover, the function
+and depth meters, the file budget in the status bar, the `(void)` fix,
+headers and guards, new projects and files with the same templates, the
+whole-project check and the snippets. Its README lists the commands and
+settings.
+
+Install it from the [latest release](https://github.com/cempack/epitech.nvim/releases/latest)
+(`code --install-extension epitech.vsix`), or let
+[epitech-dump-arch](https://github.com/cempack/epitech-dump-arch) install
+and update it. Every push to `main` that changes it publishes a new
+release.
+
+Both editors read the same files: `shared/rules.json` (the rules),
+`shared/comment_styles.json` (header styles), `epitech.clang-format`,
+`snippets/` and `templates/`. The extension's tests run its formatter,
+scaffolding, meters and guards against this plugin's on every fixture, so
+the two can't drift apart.
+
 ## Development
 
-`test/run` runs the suite. Tests that need the real `epiclang` (the
+`test/run` runs the suite, the VS Code extension's included when node and
+`vscode/node_modules` are there (`cd vscode && npm ci`). Tests that need the real `epiclang` (the
 formatter checked by Banana, and `test/calibrate.lua`, which measures how
 Banana counts lines, parameters, depth and indentation) are skipped without
 it.

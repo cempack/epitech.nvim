@@ -185,6 +185,11 @@ function M.makefile(name, sources, tests, ldlibs, with_lib)
   return lines
 end
 
+-- The plugin's templates/ directory, shared with the VS Code extension.
+function M.templates_dir()
+  return vim.fs.dirname(lib.dir())
+end
+
 -- The base of a project's file names: libmy.a gives my, my_ls gives my_ls.
 function M.base(name)
   return name:match("^lib(.+)%.a$") or name
@@ -197,62 +202,12 @@ end
 -- A switch keeps the cases flat (C-C1 allows 3 branches to an if chain).
 function M.error_file(name)
   local base = M.base(name)
-  return vim.list_extend(c_header(name, "Error messages"), {
-    "",
-    "#include <errno.h>",
-    "#include <unistd.h>",
-    '#include "my.h"',
-    '#include "' .. base .. '.h"',
-    "",
-    "static char const *get_error_message(int error)",
-    "{",
-    "    switch (error) {",
-    "        case ENOENT:",
-    '            return "No such file or directory";',
-    "        case EACCES:",
-    '            return "Permission denied";',
-    "        case EISDIR:",
-    '            return "Is a directory";',
-    "        case ENOTDIR:",
-    '            return "Not a directory";',
-    "        case ENOMEM:",
-    '            return "Cannot allocate memory";',
-    "        case EINVAL:",
-    '            return "Invalid argument";',
-    "        case EIO:",
-    '            return "Input/output error";',
-    "        default:",
-    '            return "Unknown error";',
-    "    }",
-    "}",
-    "",
-    "static void put_error(char const *str)",
-    "{",
-    "    write(STDERR_FILENO, str, my_strlen(str));",
-    "}",
-    "",
-    "int print_error(char const *subject)",
-    "{",
-    "    char const *message = get_error_message(errno);",
-    "",
-    "    put_error(PROGRAM_NAME);",
-    '    put_error(": ");',
-    "    put_error(subject);",
-    '    put_error(": ");',
-    "    put_error(message);",
-    '    put_error("\\n");',
-    "    return EXIT_ERROR;",
-    "}",
-    "",
-    "int print_error_message(char const *message)",
-    "{",
-    "    put_error(PROGRAM_NAME);",
-    '    put_error(": ");',
-    "    put_error(message);",
-    '    put_error("\\n");',
-    "    return EXIT_ERROR;",
-    "}",
-  })
+  local lines = c_header(name, "Error messages")
+  -- The body is shared with the VS Code extension: templates/project/.
+  for _, line in ipairs(vim.fn.readfile(M.templates_dir() .. "/project/print_error.c")) do
+    lines[#lines + 1] = (line:gsub("@BASE@", base))
+  end
+  return lines
 end
 
 -- The lib/my functions the error file calls.

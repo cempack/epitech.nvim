@@ -71,3 +71,16 @@ if command -v epiclang >/dev/null 2>&1 && [ -f "${HOME}/.vim/epitech.vim" ]; the
 else
     printf '%s\n' 'Skipping formatter tests: epiclang or ~/.vim/epitech.vim is missing'
 fi
+
+# The VS Code extension (vscode/): its own tests, which also check that it
+# formats, scaffolds and measures like this plugin. They need node and the
+# extension's npm dependencies (cd vscode && npm ci).
+if command -v node >/dev/null 2>&1 && [ -d "$EPITECH_NVIM_DIR/vscode/node_modules" ]; then
+    if ! output="$(cd "$EPITECH_NVIM_DIR/vscode" && node --test test/*.test.js 2>&1)"; then
+        printf '%s\n' "$output"
+        exit 1
+    fi
+    printf '%s\n' 'VS Code extension tests passed'
+else
+    printf '%s\n' 'Skipping VS Code extension tests: node or vscode/node_modules is missing'
+fi
