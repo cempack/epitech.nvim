@@ -20,9 +20,13 @@ h.assert_equal({
   clangd.header("criterion/redirect.h", "cr_redirect_stdout"),
   clangd.header("ncurses.h", "initscr"),
   clangd.header("mylib/thing.h", "thing"),
+  clangd.header("CSFML/Graphics/RenderWindow.h", "sfRenderWindow_create"),
+  clangd.header("CSFML/Audio/Music.h", "sfMusic_play"),
+  clangd.header("CSFML/Graphics.h", "sfSprite_create"),
 }, {
   "stdlib.h", "stddef.h", "stdio.h", "sys/stat.h", nil, "unistd.h", "SFML/Graphics.h", "SFML/Audio.h",
   "criterion/criterion.h", "criterion/redirect.h", "ncurses.h", "mylib/thing.h",
+  "CSFML/Graphics.h", "CSFML/Audio.h", "CSFML/Graphics.h",
 }, "headers")
 
 -- A fake clangd: an in-process server under that name, answering like the

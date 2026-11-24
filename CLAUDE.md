@@ -264,6 +264,10 @@ blink's snippet source loads every path in `sources.providers.snippets.opts.sear
 
 ---
 
+### 6.7 CSFML
+
+- CSFML 3 installs its headers in `/usr/include/CSFML/` (`#include <CSFML/Graphics.h>`), CSFML 2 in `/usr/include/SFML/`. Checked November 2026: Arch `csfml 1:3.0.0-1`; Ubuntu 26.04 `libcsfml-dev 3.0.0-1` (what Epitech's PPA `epitech-cpool` pulls); Ubuntu 24.04 `2.6.0`. The library names (`-lcsfml-graphics`…) are the same.
+
 ## 7. Configuration
 
 `require("epitech").setup(opts)`. Calling `setup()` with no argument must keep working: the README spec and the dump call it that way.
@@ -1031,6 +1035,7 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 - **The VS Code extension updates itself** (Elliot's request, for machines without epitech-dump-arch). `vscode/src/update.js`: `latest()` (GitHub's latest-release API, tag `vscode-v<version>`, asset `epitech.vsix`), `newer(a, b)`, `download(url)`, `managedByDump(home)` (`~/.local/bin/epitech-upgrade` exists), `setFetch` for tests. `extension.checkForUpdates(context, silent)`: once a day after activation (`globalState` `epitech.lastUpdateCheck`, setting `epitech.updates.check`) and on **Epitech: Check for Updates**; a newer release offers **Update now** (download, `workbench.extensions.installExtension` with the file, then a reload) and either **Run epitech-upgrade** (dump installed) or **Install all the tools** (types the installer's command in a terminal, Enter left to the user). Tested in `vscode/test/modules.test.js` and `extension.test.js` with a fake GitHub. Commit `feat: let the VS Code extension update itself`.
 
 ---
+- **CSFML 3 headers in the clangd fix (`lua/epitech/clangd.lua`)**: CSFML 3 keeps its headers in `CSFML/<Module>/…` (§6.7), and `header()` only mapped `SFML/<Module>/…`, so on a current install clangd's `<CSFML/Graphics/RenderWindow.h>` went through unchanged. The pattern is now `^(C?SFML)/(%a+)/` and keeps the prefix. `test/clangd.lua` covers both layouts. Commit `fix: map CSFML 3's sub-headers to their module header`.
 
 ## 14. Not in scope
 

@@ -69,7 +69,7 @@ declare("ctype.h", "isalpha isdigit isalnum isspace isupper islower isprint toup
 declare("math.h", "sqrt pow fabs floor ceil round cos sin tan atan2 M_PI")
 declare("sys/sysmacros.h", "major minor makedev")
 
--- Libraries with one header to include (CSFML's <SFML/Graphics.h>) and
+-- Libraries with one header to include (CSFML's <CSFML/Graphics.h>) and
 -- small internal ones clangd tends to pick.
 local CRITERION_PUBLIC = {
   ["criterion/criterion.h"] = true,
@@ -93,9 +93,11 @@ function M.header(path, symbol)
   if PUBLIC[path] then
     return path
   end
-  local module = path:match("^SFML/(%a+)/")
+  -- CSFML 3 (Ubuntu 26.04, Arch) keeps its headers in CSFML/, CSFML 2 in
+  -- SFML/: either way, the module's one public header.
+  local prefix, module = path:match("^(C?SFML)/(%a+)/")
   if module then
-    return "SFML/" .. module .. ".h"
+    return prefix .. "/" .. module .. ".h"
   end
   if path:match("^criterion/") then
     return CRITERION_PUBLIC[path] and path or "criterion/criterion.h"

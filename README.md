@@ -172,7 +172,8 @@ spaces, `\r`, blank lines, with fixes to add the header or split a long
 **clangd's includes, fixed.** Accepting `malloc` from clangd's completion
 used to add `<malloc.h>`, `size_t` `<__stddef_size_t.h>`, `printf` a
 `<bits/…>` header. The plugin rewrites those to the public header
-(`<stdlib.h>`, `<stddef.h>`, `<stdio.h>`), CSFML's to `<SFML/Graphics.h>`,
+(`<stdlib.h>`, `<stddef.h>`, `<stdio.h>`), CSFML's to `<CSFML/Graphics.h>`
+(`<SFML/Graphics.h>` with CSFML 2),
 Criterion's to `<criterion/criterion.h>`, and drops the ones it can't
 place. That covers completion, the "Include … for symbol" quick fix and
 the "#include …" fix on clangd's missing-include warning.
