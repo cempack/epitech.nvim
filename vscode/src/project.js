@@ -261,4 +261,31 @@ function buildIncludeDirs(dir, file) {
   return dirs;
 }
 
-module.exports = { root, files, name, includeFlags, buildIncludeDirs, shellWords, readDatabase };
+// The projects under folder: directories holding a Makefile that are their
+// own root (a lib/my is part of its project), sorted, at most 4 levels down.
+function projects(folder, depth = 4) {
+  const found = [];
+  const walk = (dir, level) => {
+    if (fs.existsSync(path.join(dir, "Makefile")) && root(dir) === dir) {
+      found.push(dir);
+    }
+    if (level >= depth) {
+      return;
+    }
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+        walk(path.join(dir, entry.name), level + 1);
+      }
+    }
+  };
+  walk(path.resolve(folder), 0);
+  return found.sort();
+}
+
+module.exports = { root, projects, files, name, includeFlags, buildIncludeDirs, shellWords, readDatabase };

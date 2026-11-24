@@ -9,7 +9,7 @@ const { spawnSync } = require("child_process");
 const parser = require("../src/parser");
 const banana = require("../src/banana");
 const budget = require("../src/budget");
-const fixes = require("../src/fixes");
+const fixes = require("../src/fixes/void");
 const header = require("../src/header");
 const project = require("../src/project");
 const rules = require("../src/rules");
@@ -98,6 +98,14 @@ test("(void) edits skip function pointers", async () => {
   await parser.init();
   const edits = fixes.edits("int f();\nchar *g()\n{\n    return 0;\n}\ntypedef int (*h_t)();\nint (*p)();\n");
   assert.deepStrictEqual(edits.map((edit) => edit.start.row), [0, 1]);
+});
+
+test("(void) edits land at the right place after non-ASCII text", async () => {
+  await parser.init();
+  const source = 'char const *s = "é€😀"; int f();\n';
+  const [edit] = fixes.edits(source);
+  const { line, character } = require("../src/ts").position([], edit.start);
+  assert.strictEqual(source.split("\n")[line].slice(character, character + 2), "()");
 });
 
 test("headers and guards", async () => {

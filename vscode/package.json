@@ -1,7 +1,7 @@
 {
   "name": "epitech",
   "displayName": "Epitech Coding Style",
-  "description": "The Epitech C coding style in VS Code: a Banana-proof formatter, Banana's reports as you save, function and nesting meters, fixes, headers, project scaffolding and snippets.",
+  "description": "The Epitech C coding style in VS Code: a Banana-proof formatter, Banana's reports as you save, hints for what only graders check, one-click fixes, function and nesting meters, Criterion tests with coverage, project scaffolding and a whole-project check. Unofficial.",
   "version": "0.1.0",
   "publisher": "cempack",
   "license": "MIT",
@@ -10,103 +10,431 @@
     "url": "https://github.com/cempack/epitech.nvim"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.88.0"
   },
-  "categories": ["Formatters", "Linters", "Snippets"],
-  "keywords": ["epitech", "banana", "coding style", "c"],
+  "categories": [
+    "Formatters",
+    "Linters",
+    "Snippets",
+    "Testing",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "epitech",
+    "banana",
+    "coding style",
+    "c"
+  ],
   "main": "./src/extension.js",
   "activationEvents": [
     "onLanguage:c",
     "onLanguage:cpp",
     "onLanguage:makefile",
-    "workspaceContains:**/Makefile"
+    "workspaceContains:**/Makefile",
+    "onView:epitech.checkView"
   ],
   "contributes": {
     "commands": [
-      { "command": "epitech.insertHeader", "title": "Insert Epitech Header", "category": "Epitech" },
-      { "command": "epitech.insertGuard", "title": "Add an Include Guard", "category": "Epitech" },
-      { "command": "epitech.newProject", "title": "New Project", "category": "Epitech" },
-      { "command": "epitech.newFile", "title": "New Source File", "category": "Epitech" },
-      { "command": "epitech.checkProject", "title": "Check the Whole Project with Banana", "category": "Epitech" },
-      { "command": "epitech.explainRule", "title": "Explain a Coding Style Rule", "category": "Epitech" },
-      { "command": "epitech.fixAllVoid", "title": "Add (void) to Every Empty Parameter List in the File", "category": "Epitech" },
-      { "command": "epitech.toggleBudgets", "title": "Toggle the Function and Depth Meters", "category": "Epitech" }
+      {
+        "command": "epitech.checkProject",
+        "title": "Check the Whole Project",
+        "category": "Epitech",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "epitech.newProject",
+        "title": "New Project",
+        "category": "Epitech",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "epitech.newFile",
+        "title": "New Source File",
+        "category": "Epitech",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "epitech.insertHeader",
+        "title": "Insert Epitech Header",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.insertGuard",
+        "title": "Add an Include Guard",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.explainRule",
+        "title": "Explain a Coding Style Rule",
+        "category": "Epitech",
+        "icon": "$(question)"
+      },
+      {
+        "command": "epitech.fixAllVoid",
+        "title": "Add (void) to Every Empty Parameter List in the File",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.toggleBudgets",
+        "title": "Toggle the Function and Depth Meters",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.untrack",
+        "title": "Untrack Compiled and Temporary Files (C-O1)",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.ignoreFile",
+        "title": "Ignore the Rules in This File",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.unignoreFile",
+        "title": "Stop Ignoring the Rules in This File",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.ignoreProject",
+        "title": "Ignore the Rules in This Project",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.unignoreProject",
+        "title": "Stop Ignoring the Rules in This Project",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.openWalkthrough",
+        "title": "Get Started",
+        "category": "Epitech"
+      },
+      {
+        "command": "epitech.extractMacro",
+        "title": "Extract a Number into a Macro",
+        "category": "Epitech"
+      }
     ],
     "keybindings": [
-      { "command": "epitech.insertHeader", "key": "ctrl+alt+h", "when": "editorTextFocus" },
-      { "command": "epitech.explainRule", "key": "ctrl+alt+e", "when": "editorTextFocus" }
+      {
+        "command": "epitech.insertHeader",
+        "key": "ctrl+alt+h",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "epitech.explainRule",
+        "key": "ctrl+alt+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "epitech.checkProject",
+        "key": "ctrl+alt+b"
+      }
     ],
     "snippets": [
-      { "language": "c", "path": "./data/snippets/c.json" }
+      {
+        "language": "c",
+        "path": "./data/snippets/c.json"
+      }
     ],
     "configuration": {
       "title": "Epitech",
       "properties": {
         "epitech.diagnostics.enabled": {
-          "type": "boolean", "default": true,
+          "type": "boolean",
+          "default": true,
           "description": "Run Banana (epiclang) on C files when they're opened or saved."
         },
         "epitech.diagnostics.command": {
-          "type": "string", "default": "epiclang",
+          "type": "string",
+          "default": "epiclang",
           "description": "The Banana checker. Include flags come from compile_commands.json or the project's include/ directory."
         },
         "epitech.diagnostics.args": {
-          "type": "array", "items": { "type": "string" }, "default": ["-x", "c", "-fsyntax-only"],
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "-x",
+            "c",
+            "-fsyntax-only"
+          ],
           "description": "Arguments given to the checker before the include flags and the file."
         },
         "epitech.format.enabled": {
-          "type": "boolean", "default": true,
+          "type": "boolean",
+          "default": true,
           "description": "Format C files and headers in the Epitech style (clang-format 21 or later plus the passes Banana needs)."
         },
         "epitech.format.clangFormat": {
-          "type": "string", "default": "clang-format",
+          "type": "string",
+          "default": "clang-format",
           "description": "The clang-format program (version 21 or later)."
         },
         "epitech.budget.functions": {
-          "type": "boolean", "default": true,
+          "type": "boolean",
+          "default": true,
           "description": "Show \"13/20 lines · 2/4 args\" after each function's signature (C-F4, C-F5)."
         },
         "epitech.budget.depth": {
-          "type": "boolean", "default": true,
+          "type": "boolean",
+          "default": true,
           "description": "Show the nesting depth and branch count of control statements (C-C1)."
         },
         "epitech.budget.file": {
-          "type": "boolean", "default": true,
+          "type": "boolean",
+          "default": true,
           "description": "Show the file's function counts in the status bar (C-O3)."
         },
         "epitech.scaffold.cc": {
-          "type": "string", "default": "epiclang",
+          "type": "string",
+          "default": "epiclang",
           "description": "CC in the Makefiles of new projects."
         },
         "epitech.scaffold.cflags": {
-          "type": "string", "default": "",
+          "type": "string",
+          "default": "",
           "description": "CFLAGS of new projects; empty for no CFLAGS line."
         },
         "epitech.scaffold.debugCflags": {
-          "type": "string", "default": "-g3",
+          "type": "string",
+          "default": "-g3",
           "description": "Flags `make debug` adds in new projects; empty for no debug rule."
         },
         "epitech.scaffold.errorFile": {
-          "type": "boolean", "default": true,
+          "type": "boolean",
+          "default": true,
           "description": "Give new programs src/print_error.c and the part of libmy it uses."
+        },
+        "epitech.hints.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hints for what Banana doesn't check (graders do): magic numbers, functions that could be static, const pointers, size_t, naming."
+        },
+        "epitech.hints.severity": {
+          "type": "string",
+          "enum": [
+            "hint",
+            "information",
+            "warning"
+          ],
+          "default": "hint",
+          "description": "How hints show: faint dots (hint), or in the Problems panel (information, warning)."
+        },
+        "epitech.hints.magicNumbers": {
+          "type": "boolean",
+          "default": true,
+          "description": "C-G9: numbers that deserve a name."
+        },
+        "epitech.hints.magicNumbersAllow": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "default": [
+            0,
+            1,
+            -1,
+            84
+          ],
+          "description": "Numbers never flagged (84 is Epitech's error exit code)."
+        },
+        "epitech.hints.static": {
+          "type": "boolean",
+          "default": true,
+          "description": "C-A4: functions only their own file uses (asks git)."
+        },
+        "epitech.hints.types": {
+          "type": "boolean",
+          "default": true,
+          "description": "C-A1 and C-A2: pointers to data never modified, ints holding lengths."
+        },
+        "epitech.hints.naming": {
+          "type": "boolean",
+          "default": true,
+          "description": "C-F2, C-O4, C-V1: names without a verb, vague file names, typedef and macro names."
+        },
+        "epitech.makefile.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check Makefiles: header, 80 columns, trailing spaces, empty lines."
         }
       }
     },
     "configurationDefaults": {
-      "files.associations": { "*.h": "c" },
+      "files.associations": {
+        "*.h": "c"
+      },
       "[c]": {
         "editor.defaultFormatter": "cempack.epitech",
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
-        "editor.rulers": [80],
+        "editor.rulers": [
+          80
+        ],
         "files.trimTrailingWhitespace": true,
         "files.insertFinalNewline": true,
-        "files.eol": "\n"
+        "files.eol": "\n",
+        "editor.formatOnSave": true
       },
       "[makefile]": {
-        "editor.rulers": [80]
+        "editor.rulers": [
+          80
+        ],
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true
       }
-    }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "epitech.extractMacro",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "epitech.checkProject",
+          "when": "view == epitech.checkView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "epitech.newFile",
+          "when": "view == epitech.checkView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "epitech.explainRule",
+          "when": "view == epitech.checkView",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "epitech.explainRule",
+          "when": "view == epitech.checkView && viewItem == rule",
+          "group": "inline"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "epitech.newFile",
+          "group": "navigation@9"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "epitech.insertHeader",
+          "when": "resourceExtname =~ /\\.(c|h)$/ || resourceFilename == Makefile",
+          "group": "1_modification@9"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "epitech",
+          "title": "Epitech",
+          "icon": "media/epitech.svg"
+        }
+      ]
+    },
+    "views": {
+      "epitech": [
+        {
+          "id": "epitech.checkView",
+          "name": "Coding Style"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "epitech.checkView",
+        "contents": "Check every tracked file against the coding style: Banana, the repository rules, the Makefiles, and the hints for what only graders check.\n[$(beaker) Check the Project](command:epitech.checkProject)\nStarting something new?\n[$(new-folder) New Project](command:epitech.newProject)\n[Get Started](command:epitech.openWalkthrough)"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "epitech",
+        "required": [
+          "target"
+        ],
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "The make target ('' for the default one)."
+          },
+          "cwd": {
+            "type": "string",
+            "description": "The project directory."
+          }
+        }
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "epitech.start",
+        "title": "Epitech Coding Style",
+        "description": "Set up the tools, start a project, and let the editor keep it Banana-clean.",
+        "steps": [
+          {
+            "id": "tools",
+            "title": "Install the tools",
+            "description": "The formatter needs clang-format 21 or newer; Banana's reports need epiclang.\n[Open the setup guide](https://github.com/cempack/epitech-dump-arch#readme)",
+            "media": {
+              "markdown": "walkthrough/tools.md"
+            }
+          },
+          {
+            "id": "project",
+            "title": "Start a project",
+            "description": "Makefile, header, main.c, an error file with libmy, a Criterion test and a .gitignore.\n[New Project](command:epitech.newProject)",
+            "media": {
+              "markdown": "walkthrough/project.md"
+            },
+            "completionEvents": [
+              "onCommand:epitech.newProject"
+            ]
+          },
+          {
+            "id": "write",
+            "title": "Write: format, meters, hints",
+            "description": "Saving formats the file. Meters count lines, parameters and depth; hints flag what graders check.",
+            "media": {
+              "markdown": "walkthrough/write.md"
+            }
+          },
+          {
+            "id": "fix",
+            "title": "Fix with the light bulb",
+            "description": "Ctrl+. on a report: (void), declarations to the top, one statement per line, switch, const, static, macros.",
+            "media": {
+              "markdown": "walkthrough/fix.md"
+            }
+          },
+          {
+            "id": "test",
+            "title": "Run the tests",
+            "description": "Criterion tests appear in the Testing view, with coverage.\n[Open the Testing view](command:workbench.view.testing.focus)",
+            "media": {
+              "markdown": "walkthrough/test.md"
+            }
+          },
+          {
+            "id": "deliver",
+            "title": "Check before you push",
+            "description": "Every tracked file, the Makefiles and the repository rules.\n[Check the Project](command:epitech.checkProject)",
+            "media": {
+              "markdown": "walkthrough/deliver.md"
+            },
+            "completionEvents": [
+              "onCommand:epitech.checkProject"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "test": "node --test test/*.test.js",
@@ -119,5 +447,10 @@
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0"
+  },
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
   }
 }

@@ -98,7 +98,8 @@ function apply(document, edits) {
 
 function create() {
   const registry = { commands: {}, formatting: [], codeActions: [], hovers: [], content: {}, events: {}, messages: [],
-    decorations: new Map(), inputs: [], picks: [] };
+    decorations: new Map(), inputs: [], picks: [], collections: {}, trees: {}, taskProviders: {}, controllers: [],
+    applied: [], files: [] };
   const diagnostics = new Map();
   const on = (name) => (listener) => {
     (registry.events[name] = registry.events[name] || []).push(listener);
@@ -109,7 +110,9 @@ function create() {
     "diagnostics.enabled": true, "diagnostics.command": "epiclang", "diagnostics.args": ["-x", "c", "-fsyntax-only"],
     "format.enabled": true, "format.clangFormat": "clang-format", "budget.functions": true, "budget.depth": true,
     "budget.file": true, "scaffold.cc": "epiclang", "scaffold.cflags": "", "scaffold.debugCflags": "-g3",
-    "scaffold.errorFile": true,
+    "scaffold.errorFile": true, "hints.enabled": true, "hints.severity": "hint", "hints.magicNumbers": true,
+    "hints.magicNumbersAllow": [0, 1, -1, 84], "hints.static": true, "hints.types": true, "hints.naming": true,
+    "makefile.enabled": true,
   };
   const message = (level) => async (text, ...items) => {
     registry.messages.push({ level, text });
@@ -151,7 +154,121 @@ function create() {
         this.kind = kind;
       }
     },
-    CodeActionKind: { QuickFix: "quickfix" },
+    CodeActionKind: { QuickFix: "quickfix", RefactorRewrite: "refactor.rewrite", Empty: "" },
+    EventEmitter: class {
+      constructor() {
+        this.listeners = [];
+        this.event = (listener) => this.listeners.push(listener);
+      }
+
+      fire(value) {
+        this.listeners.forEach((listener) => listener(value));
+      }
+    },
+    TreeItem: class {
+      constructor(label, collapsibleState) {
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+      }
+    },
+    TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
+    ThemeIcon: class {
+      constructor(id) {
+        this.id = id;
+      }
+    },
+    Location: class {
+      constructor(uri, range) {
+        this.uri = uri;
+        this.range = range;
+      }
+    },
+    TestMessage: class {
+      constructor(message) {
+        this.message = message;
+      }
+    },
+    TestRunProfileKind: { Run: 1, Debug: 2, Coverage: 3 },
+    TestCoverageCount: class {
+      constructor(covered, total) {
+        this.covered = covered;
+        this.total = total;
+      }
+    },
+    FileCoverage: class {
+      constructor(uri, statementCoverage) {
+        this.uri = uri;
+        this.statementCoverage = statementCoverage;
+      }
+    },
+    StatementCoverage: class {
+      constructor(executed, location) {
+        this.executed = executed;
+        this.location = location;
+      }
+    },
+    Task: class {
+      constructor(definition, scope, name, source, execution, problemMatchers) {
+        Object.assign(this, { definition, scope, name, source, execution, problemMatchers });
+      }
+    },
+    ShellExecution: class {
+      constructor(command, args, options) {
+        Object.assign(this, { command, args, options });
+      }
+    },
+    TaskGroup: { Build: "build", Test: "test" },
+    TaskScope: { Workspace: 2 },
+    tasks: {
+      registerTaskProvider: (type, provider) => {
+        registry.taskProviders[type] = provider;
+        return disposable;
+      },
+    },
+    tests: {
+      createTestController: (id, label) => {
+        const items = new Map();
+        const collection = (map) => ({
+          get: (key) => map.get(key),
+          add: (item) => map.set(item.id, item),
+          delete: (key) => map.delete(key),
+          replace: (list) => {
+            map.clear();
+            list.forEach((item) => map.set(item.id, item));
+          },
+          forEach: (fn) => map.forEach((item) => fn(item)),
+          get size() {
+            return map.size;
+          },
+          [Symbol.iterator]: () => map.entries(),
+        });
+        const controller = {
+          id, label, items: collection(items), profiles: [],
+          createTestItem: (itemId, itemLabel, uri) => ({ id: itemId, label: itemLabel, uri,
+            children: collection(new Map()) }),
+          createRunProfile(name, kind, handler) {
+            const profile = { name, kind, handler };
+            this.profiles.push(profile);
+            return profile;
+          },
+          createTestRun() {
+            const run = { results: {}, output: "", coverage: [] };
+            run.started = () => {};
+            run.passed = (item) => { run.results[item.label] = "passed"; };
+            run.failed = (item, messages) => { run.results[item.label] = { failed: messages }; };
+            run.errored = (item, message) => { run.results[item.label] = { errored: message }; };
+            run.skipped = (item) => { run.results[item.label] = "skipped"; };
+            run.appendOutput = (text) => { run.output += text; };
+            run.addCoverage = (coverage) => run.coverage.push(coverage);
+            run.end = () => { registry.lastRun = run; };
+            return run;
+          },
+          dispose() {},
+        };
+        registry.controllers.push(controller);
+        return controller;
+      },
+    },
     WorkspaceEdit: class {
       constructor() {
         this.edits = [];
@@ -160,20 +277,47 @@ function create() {
       replace(uri, range, text) {
         this.edits.push({ uri, range, text });
       }
+
+      insert(uri, position, text) {
+        this.edits.push({ uri, range: new Range(position, position), text });
+      }
+
+      createFile(uri) {
+        this.edits.push({ uri, create: true });
+      }
     },
     TextEdit: { replace: (range, text) => ({ range, text }) },
     StatusBarAlignment: { Left: 1, Right: 2 },
     ProgressLocation: { Notification: 15 },
     languages: {
-      createDiagnosticCollection: () => ({
-        set(uri, list) {
-          diagnostics.set(uri.toString(), list);
-        },
-        delete(uri) {
-          diagnostics.delete(uri.toString());
-        },
-        dispose() {},
-      }),
+      createDiagnosticCollection: (name) => {
+        const own = new Map();
+        registry.collections[name] = own;
+        const all = () => {
+          const merged = new Map();
+          for (const collection of Object.values(registry.collections)) {
+            for (const [key, list] of collection) {
+              merged.set(key, (merged.get(key) || []).concat(list));
+            }
+          }
+          diagnostics.clear();
+          for (const [key, list] of merged) {
+            diagnostics.set(key, list);
+          }
+        };
+        return {
+          set(uri, list) {
+            own.set(uri.toString(), list);
+            all();
+          },
+          get: (uri) => own.get(uri.toString()),
+          delete(uri) {
+            own.delete(uri.toString());
+            all();
+          },
+          dispose() {},
+        };
+      },
       getDiagnostics: (uri) => diagnostics.get(uri.toString()) || [],
       registerDocumentFormattingEditProvider: (selector, provider) => registry.formatting.push(provider) && disposable,
       registerCodeActionsProvider: (selector, provider) => registry.codeActions.push(provider) && disposable,
@@ -183,6 +327,13 @@ function create() {
       textDocuments: [],
       workspaceFolders: undefined,
       getConfiguration: () => ({ get: (key) => settings[key] }),
+      findFiles: async () => registry.files.map((file) => Uri.file(file)),
+      createFileSystemWatcher: () => ({ onDidCreate() {}, onDidChange() {}, onDidDelete() {}, dispose() {} }),
+      openTextDocument: async (uri) => registry.openDocument(uri),
+      applyEdit: async (edit) => {
+        registry.applied.push(edit);
+        return true;
+      },
       registerTextDocumentContentProvider: (scheme, provider) => {
         registry.content[scheme] = provider;
         return disposable;
@@ -198,7 +349,13 @@ function create() {
       visibleTextEditors: [],
       createOutputChannel: () => ({ appendLine() {}, dispose() {} }),
       createTextEditorDecorationType: () => ({ dispose() {} }),
-      createStatusBarItem: () => status,
+      createStatusBarItem: (id) => (id === "epitech.check" ? registry.checkStatus = { show() {
+        this.visible = true;
+      }, hide() {}, dispose() {} } : status),
+      registerTreeDataProvider: (id, provider) => {
+        registry.trees[id] = provider;
+        return disposable;
+      },
       showInformationMessage: message("info"),
       showWarningMessage: message("warning"),
       showErrorMessage: message("error"),
@@ -246,7 +403,14 @@ function create() {
     };
   }
 
-  return { vscode, registry, settings, status, diagnostics, TextDocument, editor, apply,
+  // VS Code's globalState.
+  const memento = (() => {
+    const values = new Map();
+    return { get: (key, fallback) => (values.has(key) ? values.get(key) : fallback),
+      update: async (key, value) => values.set(key, value) };
+  })();
+
+  return { vscode, registry, settings, status, diagnostics, TextDocument, editor, apply, memento,
     readDocument: (file) => new TextDocument(file, fs.readFileSync(file, "utf8")) };
 }
 

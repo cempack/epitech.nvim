@@ -2,7 +2,8 @@
 // ranges as { start, end } Treesitter points. A port of lua/epitech/fixes/.
 "use strict";
 
-const ts = require("./ts");
+const ts = require("../ts");
+const { nodeEdit } = require("./edits");
 
 // C-F6: `()` becomes `(void)` on named functions (definitions, prototypes,
 // main, pointer-returning ones). Function pointers and typedefs keep theirs.
@@ -34,4 +35,10 @@ function edits(source) {
   return ts.withTree(source, (root) => voidEdits(root));
 }
 
-module.exports = { edits, voidEdits };
+function actions(ctx) {
+  return voidEdits(ctx.root).filter((edit) => edit.start.row <= ctx.range.end && edit.end.row >= ctx.range.start)
+    .map((edit) => ({ title: edit.title, rule: edit.rule, edits: [nodeEdit({ startPosition: edit.start,
+      endPosition: edit.end }, edit.newText)] }));
+}
+
+module.exports = { id: "void", rules: ["C-F6"], edits, voidEdits, actions };

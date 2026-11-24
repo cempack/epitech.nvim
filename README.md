@@ -408,11 +408,12 @@ With LuaSnip:
 ## VS Code
 
 [`vscode/`](vscode/) is an extension for VS Code, VSCodium and Code - OSS
-that works without Neovim: the same formatter (ported line for line),
-Banana's reports in the Problems panel with the rule on hover, the function
-and depth meters, the file budget in the status bar, the `(void)` fix,
-headers and guards, new projects and files with the same templates, the
-whole-project check and the snippets. Its README lists the commands and
+that works without Neovim: the same formatter, Banana's reports with the
+rule on hover, the hints, the fixes behind the light bulb (`(void)`,
+declarations, one statement per line, switch, const, static, macros,
+Makefiles), the meters, Criterion tests in the Testing view with coverage,
+`make` tasks, new projects and files, a sidebar with the whole-project
+check, and a getting-started walkthrough. Its README lists the commands and
 settings.
 
 Install it from the [latest release](https://github.com/cempack/epitech.nvim/releases/latest)
@@ -422,10 +423,11 @@ and update it. Every push to `main` that changes it publishes a new
 release.
 
 Both editors read the same files: `shared/rules.json` (the rules),
-`shared/comment_styles.json` (header styles), `epitech.clang-format`,
+`shared/comment_styles.json` (header styles), `shared/naming.json` (the
+naming hint's word lists), `epitech.clang-format`,
 `snippets/` and `templates/`. The extension's tests run its formatter,
-scaffolding, meters and guards against this plugin's on every fixture, so
-the two can't drift apart.
+hints, fixes, scaffolding, meters and guards against this plugin's on every
+fixture, so the two can't drift apart.
 
 ## Development
 

@@ -10,48 +10,17 @@ function M.enabled(options)
   return options.naming.enabled
 end
 
-M.verbs = {
-  "get", "set", "is", "has", "can", "create", "init", "new", "free", "destroy", "delete", "remove", "add", "insert",
-  "append", "push", "pop", "put", "print", "display", "show", "write", "read", "open", "close", "load", "save",
-  "parse", "handle", "process", "compute", "calculate", "count", "find", "search", "check", "validate", "update",
-  "apply", "build", "make", "convert", "copy", "dup", "move", "swap", "sort", "fill", "clear", "reset", "run", "exec",
-  "start", "stop", "alloc", "draw", "render", "split", "join", "trim", "format", "concat", "compare", "match", "send",
-  "receive", "connect", "wait", "toggle", "enable", "disable", "list", "dump", "eval", "solve", "generate", "pick",
-  "select", "filter", "merge", "sum", "reverse", "rotate",
-  -- More verbs from student projects. Words that begin common nouns (play
-  -- for player, win for window, map, link, hash, hit, use for user) stay
-  -- out: a name holding the noun would pass for one holding a verb.
-  "dispatch", "skip", "loop", "call", "try", "exit", "quit", "finish", "begin", "catch", "emit", "trace", "debug",
-  "test", "ensure", "verify", "assert", "transform", "reduce", "collect", "extract", "prepend", "shift", "peek",
-  "scan", "tokenize", "encode", "decode", "expand", "resize", "realloc", "grow", "shrink", "truncate", "align",
-  "clamp", "spawn", "fork", "kill", "pause", "resume", "refresh", "advance", "animate", "shoot", "collide",
-  "detect", "fetch", "retrieve", "lookup", "query", "request", "respond", "reply", "listen", "accept", "bind",
-  "attach", "detach", "register", "notify", "warn", "ask", "choose", "determine", "resolve", "schedule", "sleep",
-  "unlock", "take", "give", "keep", "drop", "ignore", "flush", "sync", "change", "modify", "edit", "replace",
-  "assign", "increment", "decrement", "multiply", "divide", "subtract", "negate", "invert", "flip", "translate",
-  "zoom", "cast", "strip", "sanitize", "normalize", "escape", "capitalize", "fix", "manage", "configure",
-  "prepare", "clean", "abort", "fail", "throw", "explore", "visit", "walk", "traverse", "browse", "navigate",
-  "follow", "iterate", "enumerate", "unlink", "disconnect", "mount", "include", "exclude", "exist", "contain",
-  "equal", "need", "unset", "shuffle", "jump", "turn", "tell", "blit", "hide", "measure", "bounce",
-}
-
-M.vague_files = {
-  "utils", "util", "tools", "tool", "misc", "helpers", "helper", "functions", "funcs", "algo", "algorithm", "string",
-  "strings", "stuff", "common", "temp", "tmp", "new", "old",
-}
-
--- The lib/my classics students write in their first weeks: their names are
--- set by the subjects.
-M.classics = {
-  "my_strlen", "my_putstr", "my_getnbr", "my_revstr", "my_strcpy", "my_strncpy", "my_strdup", "my_strndup",
-  "my_putchar", "my_put_nbr", "my_strcmp", "my_strncmp", "my_strcat", "my_strncat", "my_strstr", "my_strupcase",
-  "my_strlowcase", "my_strcapitalize", "my_str_isalpha", "my_str_isnum", "my_str_islower", "my_str_isupper",
-  "my_str_isprintable", "my_showstr", "my_showmem", "my_swap", "my_isneg", "my_is_prime", "my_find_prime_sup",
-  "my_compute_power_rec", "my_compute_power_it", "my_compute_square_root", "my_sort_int_array", "my_getnbr_base",
-  "my_putnbr_base", "my_show_word_array", "my_str_to_word_array", "my_print_alpha", "my_print_revalpha",
-  "my_print_digits", "my_print_comb", "my_print_comb2", "my_print_combn", "my_evil_str", "my_atoi", "my_itoa",
-  "my_memset", "my_memcpy", "my_realloc", "my_calloc", "my_printf", "main",
-}
+-- The word lists live in shared/naming.json, which the VS Code extension
+-- reads too: verbs (from the spec, then from student projects; words that
+-- begin common nouns, like play for player, win for window, map, link,
+-- hash, hit or use for user, stay out, since a name holding the noun would
+-- pass for one holding a verb), vague file names, and the lib/my classics
+-- students write in their first weeks, whose names the subjects set.
+local plugin_dir = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)))))
+local lists = vim.json.decode(table.concat(vim.fn.readfile(plugin_dir .. "/shared/naming.json"), "\n"))
+M.verbs = lists.verbs
+M.vague_files = lists.vague_files
+M.classics = lists.classics
 
 -- Whether a function name contains a verb: split on _, a leading "my"
 -- ignored, one word being a verb or starting with one (putstr). A
