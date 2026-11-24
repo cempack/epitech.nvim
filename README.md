@@ -1,4 +1,19 @@
-# epitech.nvim
+<p align="center">
+  <img src="docs/logo.svg" width="96" alt="">
+</p>
+
+<h1 align="center">epitech.nvim</h1>
+
+<p align="center">
+  The Epitech C Coding Style in Neovim and VS Code.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Neovim-0.11+-57A143?style=flat&logo=neovim&logoColor=white" alt="Neovim 0.11+">
+  <a href="https://github.com/cempack/epitech.nvim/releases/latest"><img src="https://img.shields.io/github/v/release/cempack/epitech.nvim?style=flat&label=VS%20Code&color=4cc38a" alt="VS Code extension"></a>
+  <a href="https://epitech.elliotmoreau.fr"><img src="https://img.shields.io/badge/part_of-epitech--toolkit-4cc38a?style=flat" alt="Part of epitech-toolkit"></a>
+  <img src="https://img.shields.io/github/license/cempack/epitech.nvim?style=flat" alt="MIT license">
+</p>
 
 Write Epitech C in Neovim with the coding style handled for you: code that's
 formatted the way Banana wants, Banana's verdict live as you save, meters
