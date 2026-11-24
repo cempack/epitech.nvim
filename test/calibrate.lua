@@ -216,10 +216,6 @@ vim.fn.writefile({ "all:", "\t@echo " .. string.rep("x", 90) }, root .. "/Makefi
 local make = vim.system({ "epiclang", "-x", "c", "-fsyntax-only", root .. "/Makefile" }, { cwd = root, text = true }):wait()
 report("epiclang reads a Makefile as C", has(banana.parse(make.stderr, root .. "/Makefile", root), "C-G4"), true)
 
-cleanup()
-if #failures > 0 then
-  error("Banana disagrees with the plugin on:\n  " .. table.concat(failures, "\n  "))
-end
 -- C-L2 on wrapped lines: one level per parenthesis open at the line's start
 -- (Elliot's report on `|| g(a,` / `b) == -1)`), and the formatter's guess for
 -- a wrapped line outside any parenthesis: one level down.
@@ -238,5 +234,10 @@ local function sum(indent)
 end
 report("C-L2 outside parentheses, one level down", wrapped_l2("wrap_plus.c", sum("        ")), false)
 report("C-L2 outside parentheses, same level", wrapped_l2("wrap_same.c", sum("    ")), nil)
+
+cleanup()
+if #failures > 0 then
+  error("Banana disagrees with the plugin on:\n  " .. table.concat(failures, "\n  "))
+end
 
 print("Calibration matches Banana")
