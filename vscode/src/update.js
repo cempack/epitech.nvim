@@ -1,5 +1,5 @@
 // Updates of the extension itself: the latest release of cempack/epitech.nvim
-// tagged vscode-v<version> holds epitech.vsix. epitech-dump-arch installs
+// tagged vscode-v<version> holds epitech.vsix. epitech-toolkit installs
 // that weekly (epitech-upgrade); an extension installed by hand checks for
 // itself and installs the new .vsix when asked.
 "use strict";
@@ -61,7 +61,7 @@ async function download(url) {
   return file;
 }
 
-// Whether epitech-dump-arch manages this machine (its updater is installed).
+// Whether epitech-toolkit manages this machine (its updater is installed).
 function managedByDump(home = os.homedir()) {
   return fs.existsSync(path.join(home, ".local", "bin", "epitech-upgrade"));
 }

@@ -13,7 +13,7 @@ The extension works on its own, but two programs make it complete:
 and updates it every week:
 
 ```sh
-bash <(curl -fsSL https://raw.githubusercontent.com/cempack/epitech-dump-arch/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/cempack/epitech-toolkit/main/install.sh)
 ```
 
 **Elsewhere:** `pipx install clang-format` gives a recent clang-format;

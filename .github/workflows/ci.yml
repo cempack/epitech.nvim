@@ -1,7 +1,7 @@
 # Tests both editors on every push and pull request. On main, when the VS
 # Code extension or a file it shares with the plugin changed, it also
 # publishes the extension: a release "vscode-v0.1.<run>" holding
-# epitech.vsix, which epitech-dump-arch installs from
+# epitech.vsix, which epitech-toolkit installs from
 # releases/latest/download/epitech.vsix.
 name: CI
 
@@ -89,5 +89,5 @@ jobs:
         run: |
           gh release create "vscode-v$VERSION" vscode/epitech.vsix \
               --title "VS Code extension $VERSION" \
-              --notes "Install: code --install-extension epitech.vsix (epitech-dump-arch does it for you)." \
+              --notes "Install: code --install-extension epitech.vsix (epitech-toolkit does it for you)." \
               --target "$GITHUB_SHA" --latest

@@ -52,7 +52,7 @@ return {
 }
 ```
 
-On Arch, [epitech-dump-arch](https://github.com/cempack/epitech-dump-arch)
+On Arch and Ubuntu, [epitech-toolkit](https://github.com/cempack/epitech-toolkit)
 installs all of this, the requirements, and keeps the plugin updated.
 
 | Needs | For |
@@ -418,7 +418,7 @@ settings.
 
 Install it from the [latest release](https://github.com/cempack/epitech.nvim/releases/latest)
 (`code --install-extension epitech.vsix`), or let
-[epitech-dump-arch](https://github.com/cempack/epitech-dump-arch) install
+[epitech-toolkit](https://github.com/cempack/epitech-toolkit) install
 and update it. Every push to `main` that changes it publishes a new
 release.
 

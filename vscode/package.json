@@ -268,7 +268,7 @@
         "epitech.updates.check": {
           "type": "boolean",
           "default": true,
-          "description": "Check once a day for a new version of the extension (epitech-dump-arch also updates it weekly)."
+          "description": "Check once a day for a new version of the extension (epitech-toolkit also updates it weekly)."
         }
       }
     },
@@ -391,7 +391,7 @@
           {
             "id": "tools",
             "title": "Install the tools",
-            "description": "The formatter needs clang-format 21 or newer; Banana's reports need epiclang.\n[Open the setup guide](https://github.com/cempack/epitech-dump-arch#readme)",
+            "description": "The formatter needs clang-format 21 or newer; Banana's reports need epiclang.\n[Open the setup guide](https://github.com/cempack/epitech-toolkit#readme)",
             "media": {
               "markdown": "walkthrough/tools.md"
             }

@@ -93,13 +93,13 @@ later`). Every report also has **Explain** in the same menu.
 | git | the project check and the static hint |
 | make, Criterion, gcovr | the tests and their coverage |
 
-[epitech-dump-arch](https://github.com/cempack/epitech-dump-arch) installs
+[epitech-toolkit](https://github.com/cempack/epitech-toolkit) installs
 all of it on Arch and Ubuntu, this extension included, and keeps it current.
 Elsewhere: `pipx install clang-format`, and epiclang from Epitech's dump.
 
 ## Install
 
-- With epitech-dump-arch: nothing to do.
+- With epitech-toolkit: nothing to do.
 - By hand: download `epitech.vsix` from the
   [latest release](https://github.com/cempack/epitech.nvim/releases/latest),
   then `code --install-extension epitech.vsix`.
@@ -107,7 +107,7 @@ Elsewhere: `pipx install clang-format`, and epiclang from Epitech's dump.
 **Updates.** Once a day the extension looks for a newer release; **Update
 now** installs it in place (then reload the window). **Epitech: Check for
 Updates** does it on demand, and `epitech.updates.check` turns the daily
-check off. With epitech-dump-arch, `epitech-upgrade` also updates it every
+check off. With epitech-toolkit, `epitech-upgrade` also updates it every
 week; without it, the update message offers the installer, which brings
 epiclang, clang-format and the rest (Arch and Ubuntu).
 

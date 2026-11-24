@@ -17,7 +17,7 @@ epitech.nvim is a Neovim plugin for the **Epitech C Coding Style v7.1**, built f
 
 It deliberately leaves rules about structure and meaning to epiclang. The roadmap in this file fills that gap: live Banana diagnostics, budget meters, hints for the rules Banana never checks, code actions that fix violations, and project-level tools.
 
-Owner: Elliot (GitHub `cempack`), an Epitech student. He uses LazyVim, lazygit and Hardtime. His machine has epiclang and `~/.vim/epitech.vim` (installed by his `epitech-dump-arch` setup, which also installs this plugin and updates it weekly through lazy.nvim).
+Owner: Elliot (GitHub `cempack`), an Epitech student. He uses LazyVim, lazygit and Hardtime. His machine has epiclang and `~/.vim/epitech.vim` (installed by his `epitech-toolkit` setup (formerly epitech-dump-arch), which also installs this plugin and updates it weekly through lazy.nvim).
 
 ---
 

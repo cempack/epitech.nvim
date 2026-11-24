@@ -202,7 +202,7 @@ function createDiagnostics(context) {
       if (error.code === "ENOENT" && !warned) {
         warned = true;
         const choice = await vscode.window.showWarningMessage(`${settings.get("diagnostics.command")} not found: `
-          + "Banana's reports are off. epitech-dump-arch installs it on Arch and Ubuntu.", "How to install");
+          + "Banana's reports are off. epitech-toolkit installs it on Arch and Ubuntu.", "How to install");
         if (choice) {
           vscode.commands.executeCommand("workbench.action.openWalkthrough", "cempack.epitech#epitech.start", false);
         }
@@ -1146,7 +1146,7 @@ function createTesting(context) {
 
 // Updates -------------------------------------------------------------------------
 
-const INSTALL_COMMAND = "bash <(curl -fsSL https://raw.githubusercontent.com/cempack/epitech-dump-arch/main/install.sh)";
+const INSTALL_COMMAND = "bash <(curl -fsSL https://raw.githubusercontent.com/cempack/epitech-toolkit/main/install.sh)";
 
 // Checks the latest release; offers to install it when it's newer. silent:
 // says nothing when up to date or offline (the daily check).
@@ -1195,7 +1195,7 @@ async function checkForUpdates(context, silent) {
     terminal.show();
     terminal.sendText("epitech-upgrade");
   } else if (choice === "Install all the tools") {
-    // epitech-dump-arch would install epiclang, clang-format, Criterion…
+    // epitech-toolkit would install epiclang, clang-format, Criterion…
     // and keep this extension current; it runs on Arch and Ubuntu.
     const terminal = vscode.window.createTerminal("Epitech tools");
     terminal.show();
