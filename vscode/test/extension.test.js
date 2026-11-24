@@ -270,3 +270,29 @@ test("a new file goes to the project it's typed into, in a repository holding se
   assert.match(fs.readFileSync(path.join(repo, "sudo", "Makefile"), "utf8"), /SRC = src\/main.c \\\n\t\tsrc\/run.c/);
   assert.doesNotMatch(fs.readFileSync(path.join(repo, "bootstrap", "Makefile"), "utf8"), /run.c/);
 });
+
+test("the extension updates itself from the latest release", async () => {
+  const update = require("../src/update");
+  const executed = [];
+  const execute = fake.vscode.commands.executeCommand;
+  fake.vscode.commands.executeCommand = async (...args) => {
+    executed.push(args);
+  };
+  update.setFetch(async (url) => (url === update.LATEST
+    ? { ok: true, json: async () => ({ tag_name: "vscode-v9.9.9",
+      assets: [{ name: "epitech.vsix", browser_download_url: "https://example/epitech.vsix" }] }) }
+    : { ok: true, arrayBuffer: async () => Buffer.from("vsix") }));
+  const updateContext = { ...context, extension: { packageJSON: { version: "0.1.0" } } };
+  await extension.checkForUpdates(updateContext, false);
+  const install = executed.find((args) => args[0] === "workbench.extensions.installExtension");
+  assert.ok(install, "installed");
+  assert.strictEqual(fs.readFileSync(install[1].fsPath, "utf8"), "vsix");
+  assert.ok(executed.some((args) => args[0] === "workbench.action.reloadWindow"), "offered a reload");
+  // Up to date: nothing installed, and it says so.
+  executed.length = 0;
+  fake.registry.messages = [];
+  await extension.checkForUpdates({ ...context, extension: { packageJSON: { version: "9.9.9" } } }, false);
+  assert.strictEqual(executed.length, 0);
+  assert.match(fake.registry.messages.pop().text, /up to date \(9.9.9\)/);
+  fake.vscode.commands.executeCommand = execute;
+});

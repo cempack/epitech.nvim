@@ -113,6 +113,11 @@
         "command": "epitech.extractMacro",
         "title": "Extract a Number into a Macro",
         "category": "Epitech"
+      },
+      {
+        "command": "epitech.checkForUpdates",
+        "title": "Check for Updates",
+        "category": "Epitech"
       }
     ],
     "keybindings": [
@@ -259,6 +264,11 @@
           "type": "boolean",
           "default": true,
           "description": "Check Makefiles: header, 80 columns, trailing spaces, empty lines."
+        },
+        "epitech.updates.check": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check once a day for a new version of the extension (epitech-dump-arch also updates it weekly)."
         }
       }
     },

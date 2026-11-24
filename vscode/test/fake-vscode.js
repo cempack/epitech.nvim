@@ -112,7 +112,7 @@ function create() {
     "budget.file": true, "scaffold.cc": "epiclang", "scaffold.cflags": "", "scaffold.debugCflags": "-g3",
     "scaffold.errorFile": true, "hints.enabled": true, "hints.severity": "hint", "hints.magicNumbers": true,
     "hints.magicNumbersAllow": [0, 1, -1, 84], "hints.static": true, "hints.types": true, "hints.naming": true,
-    "makefile.enabled": true,
+    "makefile.enabled": true, "updates.check": false,
   };
   const message = (level) => async (text, ...items) => {
     registry.messages.push({ level, text });

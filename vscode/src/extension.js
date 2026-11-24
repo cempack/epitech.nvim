@@ -28,6 +28,7 @@ const rules = require("./rules");
 const scaffold = require("./scaffold");
 const tests = require("./tests");
 const ts = require("./ts");
+const update = require("./update");
 
 const C_FILES = [{ scheme: "file", pattern: "**/*.{c,h}" }, { language: "c" }];
 const MAKEFILES = [{ scheme: "file", pattern: "**/Makefile" }, { language: "makefile" }];
@@ -1143,6 +1144,67 @@ function createTesting(context) {
   return controller;
 }
 
+// Updates -------------------------------------------------------------------------
+
+const INSTALL_COMMAND = "bash <(curl -fsSL https://raw.githubusercontent.com/cempack/epitech-dump-arch/main/install.sh)";
+
+// Checks the latest release; offers to install it when it's newer. silent:
+// says nothing when up to date or offline (the daily check).
+async function checkForUpdates(context, silent) {
+  const current = (context.extension && context.extension.packageJSON.version) || require("../package.json").version;
+  let release;
+  try {
+    release = await update.latest();
+  } catch (error) {
+    if (!silent) {
+      vscode.window.showWarningMessage(`Couldn't check for updates: ${error.message}`);
+    }
+    return;
+  }
+  await context.globalState.update("epitech.lastUpdateCheck", Date.now());
+  if (!release || !update.newer(release.version, current)) {
+    if (!silent) {
+      vscode.window.showInformationMessage(`The Epitech extension is up to date (${current})`);
+    }
+    return;
+  }
+  const dump = update.managedByDump();
+  const choices = dump ? ["Update now", "Run epitech-upgrade"] : ["Update now", "Install all the tools"];
+  const message = dump
+    ? `Epitech extension ${release.version} is out (you have ${current}). epitech-upgrade installs it weekly, or now.`
+    : `Epitech extension ${release.version} is out (you have ${current}).`;
+  const choice = await vscode.window.showInformationMessage(message, ...choices);
+  if (choice === "Update now") {
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification,
+      title: `Installing the Epitech extension ${release.version}` }, async () => {
+      try {
+        const file = await update.download(release.url);
+        await vscode.commands.executeCommand("workbench.extensions.installExtension", vscode.Uri.file(file));
+      } catch (error) {
+        vscode.window.showErrorMessage(`The update failed: ${error.message}. Get it from ${update.PAGE}`);
+        return;
+      }
+      const reload = await vscode.window.showInformationMessage(
+        `Epitech extension ${release.version} installed: reload the window to use it.`, "Reload");
+      if (reload) {
+        vscode.commands.executeCommand("workbench.action.reloadWindow");
+      }
+    });
+  } else if (choice === "Run epitech-upgrade") {
+    const terminal = vscode.window.createTerminal("epitech-upgrade");
+    terminal.show();
+    terminal.sendText("epitech-upgrade");
+  } else if (choice === "Install all the tools") {
+    // epitech-dump-arch would install epiclang, clang-format, Criterion…
+    // and keep this extension current; it runs on Arch and Ubuntu.
+    const terminal = vscode.window.createTerminal("Epitech tools");
+    terminal.show();
+    terminal.sendText(INSTALL_COMMAND, false);
+    vscode.window.showInformationMessage("Press Enter in the terminal to run the installer (Arch or Ubuntu; it asks "
+      + "for sudo). It also updates this extension every week.");
+  }
+}
+
 // Activation ---------------------------------------------------------------------
 
 async function activate(context) {
@@ -1253,6 +1315,7 @@ async function activate(context) {
     vscode.commands.registerCommand("epitech.unignoreFile", () => setIgnored(false, false)),
     vscode.commands.registerCommand("epitech.ignoreProject", () => setIgnored(true, true)),
     vscode.commands.registerCommand("epitech.unignoreProject", () => setIgnored(true, false)),
+    vscode.commands.registerCommand("epitech.checkForUpdates", () => checkForUpdates(context, false)),
     vscode.commands.registerCommand("epitech.openWalkthrough", () => vscode.commands.executeCommand(
       "workbench.action.openWalkthrough", "cempack.epitech#epitech.start", false)),
   );
@@ -1263,8 +1326,13 @@ async function activate(context) {
   diagnostics.refreshAll();
   vscode.window.visibleTextEditors.forEach((editor) => budgets.update(editor));
   showStatus();
+  // Once a day at most, quietly.
+  const last = context.globalState.get("epitech.lastUpdateCheck", 0);
+  if (config().get("updates.check") && Date.now() - last > 24 * 3600 * 1000) {
+    setTimeout(() => checkForUpdates(context, true), 10000);
+  }
 }
 
 function deactivate() {}
 
-module.exports = { activate, deactivate, includeRow, includeName, apply };
+module.exports = { activate, deactivate, includeRow, includeName, apply, checkForUpdates };

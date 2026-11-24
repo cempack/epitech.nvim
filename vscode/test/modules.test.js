@@ -158,3 +158,20 @@ test("project root, name and include directories", () => {
     [`-I${dir}/include`, '-DNAME="x"']);
   fs.rmSync(dir, { recursive: true });
 });
+
+test("update: versions and releases", () => {
+  const update = require("../src/update");
+  assert.ok(update.newer("0.1.10", "0.1.9"));
+  assert.ok(!update.newer("0.1.2", "0.1.2"));
+  assert.ok(!update.newer("0.1.1", "0.2.0"));
+  assert.deepStrictEqual(update.parseRelease({ tag_name: "vscode-v0.1.7",
+    assets: [{ name: "epitech.vsix", browser_download_url: "https://x/epitech.vsix" }] }),
+  { version: "0.1.7", url: "https://x/epitech.vsix" });
+  assert.strictEqual(update.parseRelease({ tag_name: "v1.0" }), undefined);
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "epitech-home-"));
+  assert.strictEqual(update.managedByDump(home), false);
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".local", "bin", "epitech-upgrade"), "");
+  assert.strictEqual(update.managedByDump(home), true);
+  fs.rmSync(home, { recursive: true });
+});

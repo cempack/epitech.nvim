@@ -104,6 +104,13 @@ Elsewhere: `pipx install clang-format`, and epiclang from Epitech's dump.
   [latest release](https://github.com/cempack/epitech.nvim/releases/latest),
   then `code --install-extension epitech.vsix`.
 
+**Updates.** Once a day the extension looks for a newer release; **Update
+now** installs it in place (then reload the window). **Epitech: Check for
+Updates** does it on demand, and `epitech.updates.check` turns the daily
+check off. With epitech-dump-arch, `epitech-upgrade` also updates it every
+week; without it, the update message offers the installer, which brings
+epiclang, clang-format and the rest (Arch and Ubuntu).
+
 ## Settings
 
 | Setting | Default | |
@@ -128,6 +135,7 @@ Elsewhere: `pipx install clang-format`, and epiclang from Epitech's dump.
 | `epitech.scaffold.cflags` | `""` | their `CFLAGS` |
 | `epitech.scaffold.debugCflags` | `-g3` | what `make debug` adds; empty for no rule |
 | `epitech.scaffold.errorFile` | `true` | `src/print_error.c` and libmy in new programs |
+| `epitech.updates.check` | `true` | look for a new version once a day |
 
 For C files it also sets 4 spaces, a ruler at 80 columns, format on save,
 no trailing spaces and a final newline, and opens `.h` files as C.
