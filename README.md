@@ -283,6 +283,9 @@ Nothing the plugin remembers goes in your repository (C-O1): it lives in
 directory with a Makefile (`mysudo/bootstrap/`), not the git repository
 around it: new files, `SRC` lines, the header, libmy and clangd's `-I` all
 go to the project you're editing, and `<leader>cN` names it in its prompt.
+A new file goes to the project its path lands in (`bootstrap/src/x.c`
+typed from the repository's root is bootstrap's), and from a buffer that
+isn't a file (the file tree, a terminal) `<leader>cN` asks which project.
 A `lib/my`, a directory the Makefile above builds (`$(MAKE) -C lib/my`) or
 one building a `lib*.a` stays part of its parent project.
 

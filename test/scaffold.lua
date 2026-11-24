@@ -2,6 +2,9 @@ local plugin = assert(vim.env.EPITECH_NVIM_DIR, "EPITECH_NVIM_DIR is required")
 vim.opt.runtimepath:prepend(plugin)
 package.path = plugin .. "/lua/?.lua;" .. plugin .. "/lua/?/init.lua;" .. package.path
 
+local function read_file(path)
+  return vim.fn.readfile(path)
+end
 local h = dofile(plugin .. "/test/helpers.lua")
 local header = require("epitech.header")
 local makefile = require("epitech.makefile")
@@ -279,6 +282,40 @@ root, cleanup = layout({ "NAME = x" })
 notices = {}
 h.assert_equal(makefile.add_source(root, "src/c.c"), false, "no SRC")
 h.assert_equal(notices, { "No SRC in the Makefile: add `SRC += src/c.c` yourself" }, "the user is told what to add")
+cleanup()
+
+-- A repository holding several projects (mysudo/bootstrap): from a buffer
+-- that isn't a file (a file tree), it asks which project; a typed path goes
+-- to the project it lands in.
+root, cleanup = h.temp_project({
+  ["bootstrap/Makefile"] = { "NAME = bootstrap", "", "SRC = src/main.c" },
+  ["sudo/Makefile"] = { "NAME = sudo", "", "SRC = src/main.c" },
+})
+local cwd = vim.fn.getcwd()
+vim.cmd.cd(root)
+vim.cmd.enew()
+vim.bo.buftype = "nofile"
+local asked
+vim.ui.select = function(items, opts, on_choice)
+  asked = vim.tbl_map(opts.format_item, items)
+  on_choice(items[1])
+end
+local answers = { "src/exec.c", "Execution" }
+vim.ui.input = function(_, on_confirm)
+  on_confirm(table.remove(answers, 1))
+end
+require("epitech.scaffold").new_file()
+h.assert_equal(asked, { "bootstrap", "sudo" }, "asks which project")
+h.assert_equal(vim.fn.filereadable(root .. "/bootstrap/src/exec.c"), 1, "file in bootstrap")
+h.assert_equal(read_file(root .. "/bootstrap/Makefile")[3], "SRC = src/main.c \\", "bootstrap's SRC")
+h.assert_equal(read_file(root .. "/bootstrap/src/exec.c")[3], "** bootstrap", "bootstrap's name in the header")
+answers = { "../sudo/src/run.c", "Run" }
+require("epitech.scaffold").new_file(nil, root .. "/bootstrap")
+h.assert_equal(read_file(root .. "/sudo/Makefile")[4], "\t\tsrc/run.c", "a path into sudo goes to sudo's Makefile")
+h.assert_equal(#vim.tbl_filter(function(line)
+  return line:find("run.c", 1, true) ~= nil
+end, read_file(root .. "/bootstrap/Makefile")), 0, "not bootstrap's")
+vim.cmd.cd(cwd)
 cleanup()
 
 print("Epitech scaffolding tests passed")

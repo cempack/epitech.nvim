@@ -324,18 +324,63 @@ function M.new_file_prompt(root)
   return "New file in " .. vim.fs.basename(root) .. "/: "
 end
 
+-- The projects under dir: directories with a Makefile that are their own
+-- root (a lib/my belongs to its project), sorted.
+function M.projects(dir)
+  local found = {}
+  for _, makefile in ipairs(vim.fs.find("Makefile", { path = dir, type = "file", limit = 50 })) do
+    local folder = vim.fs.dirname(makefile)
+    if project.root(folder) == util.normalize(folder):gsub("/$", "") then
+      found[#found + 1] = util.normalize(folder):gsub("/$", "")
+    end
+  end
+  table.sort(found)
+  return found
+end
+
+-- Calls on_done with the folder new paths are typed from: the current
+-- file's project, else (a file tree, a terminal, no file) a project under
+-- the current directory, asked when there are several.
+function M.base_folder(on_done)
+  local name = vim.api.nvim_buf_get_name(0)
+  if name ~= "" and vim.bo.buftype == "" then
+    return on_done(project.root(0))
+  end
+  local cwd = util.normalize(vim.fn.getcwd()):gsub("/$", "")
+  local found = M.projects(cwd)
+  if #found <= 1 then
+    return on_done(found[1] or project.root(cwd))
+  end
+  vim.ui.select(found, {
+    prompt = "Which project?",
+    format_item = function(dir)
+      return util.relative(dir, cwd) or dir
+    end,
+  }, function(dir)
+    if dir then
+      on_done(dir)
+    end
+  end)
+end
+
 function M.new_file(path, root, on_done)
-  root = root or project.root(0)
   if not path then
     -- No path given (<leader>cN): ask for it, relative to the project, which
     -- the prompt names (a repository can hold several projects).
-    return vim.ui.input({ prompt = M.new_file_prompt(root) }, function(answer)
-      if answer and answer ~= "" then
-        M.new_file(answer, root, on_done)
-      end
-    end)
+    local function ask(base)
+      vim.ui.input({ prompt = M.new_file_prompt(base) }, function(answer)
+        if answer and answer ~= "" then
+          M.new_file(answer, base, on_done)
+        end
+      end)
+    end
+    return root and ask(root) or M.base_folder(ask)
   end
-  local full = path:sub(1, 1) == "/" and path or root .. "/" .. path
+  root = root or project.root(0)
+  local full = vim.fs.normalize(path:sub(1, 1) == "/" and path or root .. "/" .. path)
+  -- The project is the one the file lands in: bootstrap/src/x.c typed from
+  -- the repository's root goes into bootstrap's Makefile.
+  root = project.root(full)
   local relative = util.relative(full, root) or path
   if vim.fn.filereadable(full) == 1 then
     util.notify(relative .. " already exists", vim.log.levels.WARN)
