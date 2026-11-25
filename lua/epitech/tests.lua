@@ -98,6 +98,23 @@ function M.parse_coverage(json, root)
   return { files = files, lines = lines, covered = covered }
 end
 
+-- gcovr's JSON report for root, or nil. gcovr reads the coverage data with
+-- GCC's gcov, which fails on clang's (epiclang, the Makefile :EpitechNew
+-- writes): then it tries again with llvm-cov.
+function M.gcovr(root, callback)
+  local args = { "gcovr", "-r", root, "--json", "-" }
+  util.system(args, { cwd = root, text = true }, function(report)
+    if report.code == 0 then
+      return callback(report.stdout or "")
+    end
+    -- A fast callback: no vim.fn here. Without llvm-cov the retry just fails.
+    vim.list_extend(args, { "--gcov-executable", "llvm-cov gcov" })
+    util.system(args, { cwd = root, text = true }, function(retry)
+      callback(retry.code == 0 and retry.stdout or nil)
+    end)
+  end)
+end
+
 -- Draws (or clears) the coverage signs of a buffer.
 function M.draw(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
@@ -234,9 +251,9 @@ function M.run(root, on_done)
         if not options.coverage or vim.fn.executable("gcovr") == 0 then
           return done(nil)
         end
-        util.system({ "gcovr", "-r", root, "--json", "-" }, { cwd = root, text = true }, function(report)
+        M.gcovr(root, function(json)
           vim.schedule(function()
-            done(report.code == 0 and M.parse_coverage(report.stdout or "", root) or nil)
+            done(json and M.parse_coverage(json, root) or nil)
           end)
         end)
       end)

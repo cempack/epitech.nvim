@@ -1110,7 +1110,12 @@ function createTesting(context) {
         }
       }
       if (withCoverage && available.includes("unit_tests")) {
-        const report = await exec("gcovr", ["-r", root, "--json", "-"], root);
+        // gcovr reads the data with GCC's gcov, which fails on clang's (epiclang,
+        // the Makefile Epitech: New Project writes): then llvm-cov does it.
+        let report = await exec("gcovr", ["-r", root, "--json", "-"], root);
+        if (report.code !== 0) {
+          report = await exec("gcovr", ["-r", root, "--json", "-", "--gcov-executable", "llvm-cov gcov"], root);
+        }
         const coverage = report.code === 0 ? tests.parseCoverage(report.stdout, root) : undefined;
         if (!coverage) {
           write("\r\nNo coverage: gcovr isn't installed or found no data\r\n");

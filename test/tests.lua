@@ -101,6 +101,37 @@ else
   h.assert_equal(result.coverage, nil, "no coverage without gcovr")
 end
 
+-- Built with clang (epiclang, the Makefile :EpitechNew writes), the data is
+-- clang's: GCC's gcov can't read it, so the coverage comes from llvm-cov.
+if vim.fn.executable("gcovr") == 1 and vim.fn.executable("clang") == 1 and vim.fn.executable("llvm-cov") == 1 then
+  local clang_root, clang_cleanup = h.temp_project({
+    ["Makefile"] = { "unit_tests: fclean", "\tclang --coverage -o unit_tests src/even.c tests/runner.c", "",
+      "tests_run: unit_tests", "\t./unit_tests", "", "clean:", "\trm -f *.gcno *.gcda", "", "fclean: clean",
+      "\trm -f unit_tests", "", ".PHONY: unit_tests tests_run clean fclean" },
+    ["src/even.c"] = vim.fn.readfile(root .. "/src/even.c"),
+    ["tests/runner.c"] = vim.fn.readfile(root .. "/tests/runner.c"),
+  })
+  local clang_even = h.buffer(clang_root .. "/src/even.c", vim.fn.readfile(clang_root .. "/src/even.c"))
+  local clang_result
+  tests.run(clang_root, function(r)
+    clang_result = r
+  end)
+  assert(vim.wait(30000, function()
+    return clang_result ~= nil
+  end), "clang tests finished")
+  h.assert_equal(clang_result.coverage ~= nil and clang_result.coverage.lines > 0, true, "clang coverage read")
+  -- clang also counts the closing brace as a line: check the lines, not the count.
+  local by_line = {}
+  for _, sign in ipairs(signs(clang_even)) do
+    by_line[sign[1]] = sign[2]
+  end
+  h.assert_equal({ by_line[3], by_line[4], by_line[6] },
+    { "EpitechCoverageHit", "EpitechCoverageHit", "EpitechCoverageMissed" }, "signs from clang's coverage")
+  clang_cleanup()
+else
+  print("Skipping clang coverage: gcovr, clang or llvm-cov is missing")
+end
+
 -- A build error is shown instead of test results.
 vim.fn.writefile({ "int is_even(int n)", "{", "    return n %", "}" }, root .. "/src/even.c")
 result = nil

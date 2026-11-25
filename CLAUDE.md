@@ -1036,6 +1036,7 @@ Per feature: what it does, its commands and keys, its config keys, and its requi
 
 ---
 - **CSFML 3 headers in the clangd fix (`lua/epitech/clangd.lua`)**: CSFML 3 keeps its headers in `CSFML/<Module>/…` (§6.7), and `header()` only mapped `SFML/<Module>/…`, so on a current install clangd's `<CSFML/Graphics/RenderWindow.h>` went through unchanged. The pattern is now `^(C?SFML)/(%a+)/` and keeps the prefix. `test/clangd.lua` covers both layouts. Commit `fix: map CSFML 3's sub-headers to their module header`.
+- **Coverage from clang builds (`lua/epitech/tests.lua`, `vscode/src/extension.js`)**: gcovr reads `.gcda` files with GCC's gcov, which fails on clang's, and the Makefile `:EpitechNew` writes uses `CC = epiclang` (clang): coverage signs never showed for those projects. `M.gcovr()` runs gcovr, and when it fails, again with `--gcov-executable "llvm-cov gcov"` (no `vim.fn` in that fast callback: without llvm-cov the retry just fails). The extension does the same. clang counts a closing brace as a line where gcc doesn't, so `test/tests.lua`'s clang case checks lines, not the count. Commit `fix: read coverage from clang builds through llvm-cov`.
 
 ## 14. Not in scope
 
